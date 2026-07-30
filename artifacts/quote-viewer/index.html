@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Branch — Office Furniture Quote</title>
+<style>
+  :root{
+    --green:#2e4438; --green-deep:#243528; --cream:#f5f2ec; --paper:#fbfaf7;
+    --ink:#21241f; --muted:#6b7066; --line:#e3ded4; --accent:#b78d4e; --amber:#9a6b1f; --amber-bg:#fdf3df;
+    --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans);color:var(--ink);background:var(--paper);line-height:1.55;padding-bottom:74px}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 24px}
+  h1,h2,h3,.brand{font-family:var(--serif)}
+
+  .hero{background:var(--green);color:var(--cream);padding:48px 0 40px}
+  .brand{font-size:34px;letter-spacing:.5px}
+  .hero .kicker{text-transform:uppercase;letter-spacing:.18em;font-size:12px;opacity:.75;margin-top:28px}
+  .hero h1{font-size:40px;font-weight:600;margin:6px 0 4px;line-height:1.15}
+  .hero .sub{font-size:17px;opacity:.85}
+  .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:20px;margin-top:34px;
+        background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:22px}
+  .meta h3{font-size:13px;text-transform:uppercase;letter-spacing:.12em;font-family:var(--sans);font-weight:600;opacity:.7;margin-bottom:6px}
+  .meta p{font-size:14.5px;opacity:.95}
+  .badge{display:inline-block;background:var(--accent);color:#fff;border-radius:999px;padding:3px 12px;font-size:12.5px;font-weight:600;margin-top:6px}
+
+  section{padding:52px 0}
+  .section-title{font-size:28px;margin-bottom:6px}
+  .section-sub{color:var(--muted);margin-bottom:28px;max-width:680px}
+
+  .items{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .item{display:grid;grid-template-columns:84px 1fr auto auto;gap:18px;align-items:center;padding:16px 22px;border-bottom:1px solid var(--line)}
+  .item:last-child{border-bottom:none}
+  .thumb{width:84px;height:84px;border-radius:10px;background:var(--cream);display:flex;align-items:center;justify-content:center;color:var(--green);overflow:hidden}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumb a{display:block;width:100%;height:100%}
+  .item .name{font-weight:600;font-size:15.5px}
+  .item .name a{color:var(--ink);text-decoration:none;border-bottom:1.5px solid var(--line)}
+  .item .name a:hover{border-bottom-color:var(--accent)}
+  .item .spec{color:var(--muted);font-size:13px}
+  .qtynote{font-size:12px;color:var(--amber);font-weight:600;margin-top:3px}
+  .qty{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .qty button{width:32px;height:34px;border:none;background:var(--cream);font-size:17px;cursor:pointer;color:var(--green);font-weight:700}
+  .qty button:hover{background:#eae5da}
+  .qty input{width:44px;height:34px;border:none;text-align:center;font-size:14.5px;font-weight:600;background:#fff}
+  .item .line-total{font-weight:600;font-size:15.5px;min-width:92px;text-align:right}
+  .item .unit{color:var(--muted);font-size:12.5px;text-align:right}
+
+  .summary-grid{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start}
+  @media(max-width:860px){.summary-grid{grid-template-columns:1fr}}
+  .summary{background:var(--green);color:var(--cream);border-radius:14px;padding:26px;position:sticky;top:18px}
+  .summary h3{font-size:20px;margin-bottom:16px}
+  .srow{display:flex;justify-content:space-between;font-size:14.5px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.14)}
+  .srow.total{border-bottom:none;font-size:21px;font-weight:700;font-family:var(--serif);padding-top:14px}
+  .srow.discount span:last-child{color:#d8c9a0}
+  .srow .lbl{opacity:.85}
+  .srow .lbl a{color:var(--cream);text-decoration:underline dotted;text-underline-offset:3px}
+  .cta{display:block;width:100%;text-align:center;margin-top:18px;padding:13px;border-radius:9px;font-weight:600;
+       font-size:15px;cursor:pointer;text-decoration:none;border:none;transition:opacity .15s}
+  .cta.primary{background:var(--accent);color:#fff}
+  .cta.secondary{background:transparent;color:var(--cream);border:1.5px solid rgba(255,255,255,.4);margin-top:10px}
+  .cta:hover{opacity:.88}
+  .fine{font-size:12px;opacity:.65;margin-top:14px;line-height:1.5}
+  .invbanner{display:none;background:var(--amber-bg);border:1px solid #e3c98a;color:var(--amber);border-radius:9px;
+       padding:11px 14px;font-size:13px;line-height:1.45;margin-top:16px}
+  .invbanner.show{display:block}
+
+  /* White glove */
+  .wg-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:700px){.wg-grid{grid-template-columns:1fr}}
+  .wg-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px}
+  .wg-card.included{border-top:4px solid var(--green)}
+  .wg-card.excluded{border-top:4px solid var(--line)}
+  .wg-card h3{font-size:18px;margin-bottom:12px}
+  .wg-card ul{list-style:none}
+  .wg-card li{font-size:14px;padding:7px 0 7px 26px;position:relative;color:#3a3f37;border-bottom:1px dashed var(--line)}
+  .wg-card li:last-child{border-bottom:none}
+  .wg-card.included li::before{content:"✓";position:absolute;left:2px;color:var(--green);font-weight:700}
+  .wg-card.excluded li::before{content:"—";position:absolute;left:2px;color:var(--muted);font-weight:700}
+
+  details{background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:10px}
+  summary{cursor:pointer;font-weight:600;padding:16px 20px;font-size:15px}
+  details .body{padding:0 20px 18px;color:#3a3f37;font-size:14px}
+
+  footer{background:var(--green-deep);color:var(--cream);text-align:center;padding:54px 0}
+  footer .brand{font-size:30px;margin-bottom:8px}
+  footer p{font-size:13.5px;opacity:.75}
+  footer a{color:var(--cream)}
+
+  .stickybar{position:fixed;bottom:0;left:0;right:0;background:var(--green);color:var(--cream);
+       display:flex;justify-content:space-between;align-items:center;padding:12px 20px;
+       box-shadow:0 -4px 18px rgba(0,0,0,.18);z-index:50}
+  .stickybar .t{font-family:var(--serif);font-size:20px;font-weight:700}
+  .stickybar small{display:block;font-size:11.5px;opacity:.75;font-family:var(--sans);font-weight:400}
+  .stickybar a{background:var(--accent);color:#fff;text-decoration:none;font-weight:600;padding:10px 22px;border-radius:8px;font-size:14px}
+
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(20,28,22,.55);z-index:100;align-items:center;justify-content:center;padding:20px}
+  .modal-bg.open{display:flex}
+  .modal{background:#fff;border-radius:14px;max-width:520px;width:100%;padding:32px;max-height:88vh;overflow:auto}
+  .modal h3{font-size:23px;margin-bottom:10px}
+  .modal p{font-size:14.5px;color:#3a3f37;margin-bottom:8px}
+  .modal .total-line{font-size:18px;font-weight:700;margin:14px 0}
+  .modal .invnote{background:var(--amber-bg);border:1px solid #e3c98a;color:var(--amber);border-radius:9px;padding:11px 14px;font-size:13px;margin:12px 0}
+  /* Clickwrap e-sign block (V1) */
+  .sign{border:1px solid var(--line);border-radius:10px;padding:16px;margin:14px 0;background:var(--cream)}
+  .sign label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+  .sign input[type=text]{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin-bottom:12px}
+  .sign .agree{display:flex;gap:9px;align-items:flex-start;font-size:13px;font-weight:400;color:#3a3f37}
+  .sign .agree input{margin-top:3px}
+  .modal .cta.primary{background:var(--green)}
+  .modal .cta.primary:disabled{opacity:.45;cursor:not-allowed}
+  .modal .cancel{background:none;border:none;color:var(--muted);margin-top:12px;cursor:pointer;font-size:13.5px;width:100%}
+  .accepted-msg{display:none;text-align:center;padding:8px 0}
+  .accepted-msg .check{width:56px;height:56px;border-radius:50%;background:var(--green);color:#fff;font-size:30px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     DATA INJECTION POINT
+     In production the Cloud Run service replaces this <script> block
+     with the real quote payload inline before serving the page.
+     In dev, quote-sample.js is loaded so the page renders standalone.
+     ============================================================ -->
+<script src="./quote-sample.js"></script>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="wrap">
+    <div class="brand">Branch</div>
+    <div class="kicker">Office Furniture Quote</div>
+    <h1 id="heroPreparedFor"></h1>
+    <p class="sub" id="heroSub"></p>
+    <div class="meta">
+      <div><h3>Prepared for</h3><p id="metaPreparedFor"></p></div>
+      <div><h3>Your Branch team</h3><p id="metaRep"></p></div>
+      <div><h3>Validity</h3><p id="metaValidity"></p><span class="badge" id="daysLeft"></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- LINE ITEMS + SUMMARY -->
+<section>
+  <div class="wrap">
+    <div class="summary-grid">
+      <div>
+        <h2 class="section-title">Your quote</h2>
+        <p class="section-sub">Everything below is itemized straight from your quote. Adjust quantities to match your headcount — totals update instantly.</p>
+        <div class="items" id="itemRows"></div>
+      </div>
+      <div class="summary">
+        <h3>Your investment</h3>
+        <div class="srow"><span class="lbl">Product subtotal</span><span id="sumProducts"></span></div>
+        <div class="srow"><span class="lbl"><a href="#whiteglove">White Glove Delivery &amp; Install</a></span><span id="sumWG"></span></div>
+        <div class="srow discount" id="discountRow" style="display:none"><span class="lbl">Discount</span><span id="sumDiscount"></span></div>
+        <div class="srow"><span class="lbl" id="taxLabel">Tax</span><span id="sumTax"></span></div>
+        <div class="srow total"><span>Total</span><span id="sumTotal"></span></div>
+        <div class="invbanner" id="invBanner"><strong>Availability check needed.</strong> You've adjusted quantities from the original quote. We'll confirm stock and delivery timeline before final pricing — usually within one business day.</div>
+        <button class="cta primary" id="acceptBtn" onclick="openModal()">Accept this quote</button>
+        <a class="cta secondary" id="changesLink" href="#">Request changes</a>
+        <p class="fine">Accepting this quote begins the e-signature process — nothing is final until you sign. <a href="#whiteglove" style="color:var(--cream)">See exactly what White Glove includes ↓</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHITE GLOVE -->
+<section id="whiteglove" style="padding-top:0">
+  <div class="wrap">
+    <h2 class="section-title">White Glove Delivery, in plain terms</h2>
+    <p class="section-sub">Your quote includes our full-service delivery and installation. Here's exactly where the line is drawn — no surprises on install day.</p>
+    <div class="wg-grid">
+      <div class="wg-card included">
+        <h3>Included in your quote</h3>
+        <ul>
+          <li>Scheduled delivery window coordinated with your building</li>
+          <li>Certificate of Insurance (COI) handled by Branch</li>
+          <li>Professional install team — full assembly of every item</li>
+          <li>In-room placement according to your space plan</li>
+          <li>Complete packaging removal and clean-up</li>
+          <li>Single point of contact: your Branch Captain coordinates it all</li>
+        </ul>
+      </div>
+      <div class="wg-card excluded">
+        <h3>Not included (and when extra fees apply)</h3>
+        <ul>
+          <li>Electrical or plumbing connections — never performed by Branch or its partners</li>
+          <li>Union labor, where required by your building (surcharge applies)</li>
+          <li>After-hours or weekend delivery (surcharge applies)</li>
+          <li>Carrying furniture up or through stairwells (surcharge applies)</li>
+          <li>Site readiness — premises must be clear, safe, and construction-complete</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TERMS -->
+<section style="padding-top:0">
+  <div class="wrap">
+    <h2 class="section-title">Terms &amp; Conditions</h2>
+    <p class="section-sub">The fine print, in plain sight.</p>
+    <details><summary>1. Quote validity</summary><div class="body">Quotes/Invoices are valid for 30 days, after which product pricing is subject to change.</div></details>
+    <details><summary>2. Floor plans</summary><div class="body">Should there be a predetermined furniture layout ("Floor Plan") for your office space, all furniture will be assembled and placed according to the Floor Plan. Branch is not liable for delivery problems arising from inaccuracies in the Floor Plan. When a discrepancy arises between the Floor Plan and Quote, the Quote is the source of truth.</div></details>
+    <details><summary>3. Payments</summary><div class="body">Orders under $15,000 require payment in full prior to processing. Orders over $15,000 require a minimum 50% deposit prior to processing, with the remaining balance due at least 5 business days before delivery. Payment is deemed received once funds reflect in Branch's bank account. Credit card payments are subject to a 2.9% processing fee. Purchase Order payment terms supersede standard Branch terms where agreed in writing prior to processing.</div></details>
+    <details><summary>4. Insurance</summary><div class="body">Clients will ensure they hold adequate insurance to facilitate furniture delivery and installation in the premises, as required by building management.</div></details>
+    <details><summary>5. Delivery options</summary><div class="body"><strong>White Glove Delivery:</strong> delivery and installation of products in your premises. A standard 15% installation fee applies. Additional fees may apply where union labor, after-hours delivery, or movement of furniture through stairwells is required. Branch and its partners do not connect electrical or plumbing services.<br><br><strong>Standard Delivery:</strong> receipt via parcel or LTL shipment. Clients are responsible for assembly and packaging disposal. Freight/LTL shipments are unloaded to a ground-level area outside your office; clients transport items into the premises.</div></details>
+    <details><summary>6. White glove installation</summary><div class="body">Enterprise quotes include White Glove installation fees except where Standard Delivery is requested. An additional installation fee may be charged for changes made to an order after it has been placed.</div></details>
+    <details><summary>7. Condition of job site</summary><div class="body">Client is responsible for ensuring the premises can receive furniture. Branch may refuse delivery to premises undergoing construction, with areas that aren't clear, or deemed unsafe. Additional charges for redelivery and storage are the client's responsibility.</div></details>
+    <details><summary>8. Delivery information</summary><div class="body">Client will provide the correct delivery address, building delivery hours, union labor requirements, elevator booking requirements, and Certificate of Insurance requirements. Inaccurate information may result in delays, service changes, or additional fees.</div></details>
+    <details><summary>9. Damages upon delivery</summary><div class="body">Client is responsible for inspecting delivery and noting missing, incorrect, or damaged items. Report damages to the installation team or enterprise@branchfurniture.com within 24 hours of delivery. Branch will respond with remedy action in a reasonable and timely manner.</div></details>
+    <details><summary>10. Returns</summary><div class="body">Returns accepted within 30 days of purchase. Custom products, shipping fees, and installation fees are non-refundable. Products must be in like-new condition. Return shipping costs and a 20% restocking fee are deducted from the refund. Products shipped outside the contiguous US or Canadian provinces are final sale.</div></details>
+    <p style="font-size:13px;color:var(--muted);margin-top:14px">Full terms at <a href="https://www.branchfurniture.com/pages/terms-conditions" style="color:var(--green)">branchfurniture.com/pages/terms-conditions</a> · Questions? sales@branchfurniture.com</p>
+  </div>
+</section>
+
+<footer>
+  <div class="brand">Branch</div>
+  <p>We'd love to help you bring your vision to life.</p>
+  <p style="margin-top:8px"><a href="https://branchfurniture.com">branchfurniture.com</a> · 147 West 26th St, New York, NY 10001</p>
+</footer>
+
+<div class="stickybar">
+  <div class="t"><span id="barTotal"></span><small id="barTierLabel">all-in</small></div>
+  <a href="#" id="barAccept" onclick="openModal();return false;">Accept quote</a>
+</div>
+
+<!-- ACCEPT MODAL with clickwrap e-sign (V1) -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div id="modalForm">
+      <h3 id="modalTitle">Accept this quote?</h3>
+      <p id="modalTotal"></p>
+      <div class="invnote" id="modalInvNote" style="display:none"></div>
+      <div class="sign">
+        <label for="signName">Type your full name to sign</label>
+        <input type="text" id="signName" placeholder="e.g., Teagan James" oninput="validateSign()">
+        <div class="agree">
+          <input type="checkbox" id="signAgree" onchange="validateSign()">
+          <label for="signAgree" style="font-weight:400;margin:0">I agree to Branch's <a href="#whiteglove" target="_blank" style="color:var(--green)">Terms &amp; Conditions</a> and authorize this order at the total shown. I understand nothing is charged until Branch confirms and sends payment documents.</label>
+        </div>
+      </div>
+      <p class="fine" style="color:var(--muted);opacity:1">By signing, your name, the date, and your device details are recorded as your electronic signature.</p>
+      <button class="cta primary" id="confirmBtn" disabled onclick="submitAccept()">Sign &amp; accept</button>
+      <button class="cancel" onclick="closeModal()">Go back</button>
+    </div>
+    <div class="accepted-msg" id="acceptedMsg">
+      <div class="check">✓</div>
+      <h3>Accepted — thank you</h3>
+      <p id="acceptedCopy"></p>
+      <button class="cta primary" style="margin-top:18px" onclick="closeModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   RENDER LOGIC — reads only from window.QUOTE.
+   No hardcoded quote data, rep, rates, or SKU images live here.
+   See quote-sample.js for the exact shape the server must inject.
+   ===================================================================== */
+const Q = window.QUOTE;
+
+const fmt = n => "$" + Number(n).toLocaleString("en-US",{minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtDate = s => new Date(s).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+const esc = s => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+const fallbackSVG = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 4h10v8H7z"/><path d="M7 12v3h10v-3"/><path d="M12 15v4M8 21h8M12 19l-3 2M12 19l3 2"/></svg>';
+
+/* ---------- Header ---------- */
+function renderHeader(){
+  const c = Q.customer, r = Q.rep, m = Q.meta;
+  document.getElementById("heroPreparedFor").textContent = "Prepared for " + c.company;
+  document.getElementById("heroSub").textContent = [c.location, "Quote #" + m.ref].filter(Boolean).join("  ·  ");
+  document.getElementById("metaPreparedFor").innerHTML =
+    [esc(c.contactName), esc(c.contactTitle), esc(c.contactEmail)].filter(Boolean).join("<br>");
+  document.getElementById("metaRep").innerHTML =
+    [esc(r.name), esc(r.title), esc(r.email), esc(r.phone)].filter(Boolean).join("<br>");
+  document.getElementById("metaValidity").innerHTML =
+    "Created: " + fmtDate(m.created) + "<br>Expires: " + fmtDate(m.expires);
+
+  const days = Math.ceil((new Date(m.expires) - new Date())/(1000*60*60*24));
+  const el = document.getElementById("daysLeft");
+  if(days > 0){ el.textContent = days + (days===1?" day":" days") + " left at this pricing"; }
+  else { el.textContent = "Expired — contact your rep to refresh"; el.style.background = "#8a3b2e"; }
+}
+
+/* ---------- Line items ---------- */
+function thumbHTML(it){
+  const inner = it.imageUrl
+    ? `<img src="${esc(it.imageUrl)}" alt="${esc(it.name)}">`
+    : fallbackSVG;
+  return it.productUrl
+    ? `<div class="thumb"><a href="${esc(it.productUrl)}" target="_blank" rel="noopener">${inner}</a></div>`
+    : `<div class="thumb">${inner}</div>`;
+}
+
+function movedTooFar(it){
+  return Math.abs(it.qty - it.orig) > Math.max(2, Math.round(0.2 * it.orig));
+}
+function needsInvCheck(){ return Q.items.some(movedTooFar); }
+
+function renderItems(){
+  document.getElementById("itemRows").innerHTML = Q.items.map((it,idx)=>{
+    const moved = movedTooFar(it);
+    const nameHTML = it.productUrl
+      ? `<a href="${esc(it.productUrl)}" target="_blank" rel="noopener">${esc(it.name)}</a>`
+      : esc(it.name);
+    return `<div class="item">
+      ${thumbHTML(it)}
+      <div>
+        <div class="name">${nameHTML}</div>
+        <div class="spec">${esc(it.spec)}${it.sku ? " · SKU " + esc(it.sku) : ""}</div>
+        ${moved?`<div class="qtynote">Quantity changed from ${it.orig} — availability check applies</div>`:""}
+      </div>
+      <div class="qty">
+        <button onclick="bump(${idx},-1)" aria-label="decrease">−</button>
+        <input type="number" min="0" max="99" value="${it.qty}" onchange="setQty(${idx},this.value)">
+        <button onclick="bump(${idx},1)" aria-label="increase">+</button>
+      </div>
+      <div>
+        <div class="line-total">${fmt(Math.round(it.price*it.qty*100)/100)}</div>
+        <div class="unit">${fmt(it.price)} each</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* ---------- Totals ---------- */
+function calc(){
+  const products = Q.items.reduce((s,i)=> s + Math.round(i.price*i.qty*100)/100, 0);
+  const discount = Q.rates.discount || 0;
+  const edited = needsAnyEdit();
+
+  let wg, tax;
+  if(edited){
+    wg  = Math.round(products * Q.rates.wgRate * 100)/100;
+    const preTax = Math.round((products + wg - discount)*100)/100;
+    tax = Math.round(preTax * Q.rates.taxRate * 100)/100;
+  } else {
+    wg  = Q.rates.wgAmount;
+    tax = Q.rates.taxAmount;
+  }
+  const preTax = Math.round((products + wg - discount)*100)/100;
+  return {products, wg, discount, preTax, tax, total: Math.round((preTax+tax)*100)/100};
+}
+function needsAnyEdit(){ return Q.items.some(i => i.qty !== i.orig); }
+
+function renderSummary(){
+  const c = calc();
+  document.getElementById("sumProducts").textContent = fmt(c.products);
+  document.getElementById("sumWG").textContent  = fmt(c.wg);
+  const dRow = document.getElementById("discountRow");
+  if(c.discount > 0){
+    dRow.style.display = "flex";
+    document.getElementById("sumDiscount").textContent = "-" + fmt(c.discount);
+  } else dRow.style.display = "none";
+  document.getElementById("taxLabel").textContent = Q.rates.taxLabel || "Tax";
+  document.getElementById("sumTax").textContent = fmt(c.tax);
+  document.getElementById("sumTotal").textContent = fmt(c.total);
+  document.getElementById("barTotal").textContent = fmt(c.total);
+
+  const inv = needsInvCheck();
+  document.getElementById("invBanner").classList.toggle("show", inv);
+  document.getElementById("acceptBtn").textContent = inv ? "Accept — pending availability check" : "Accept this quote";
+  document.getElementById("barAccept").textContent = inv ? "Accept (availability check)" : "Accept quote";
+
+  const subj = encodeURIComponent(`Quote ${Q.meta.ref} — change request`);
+  const body = encodeURIComponent(`Hi ${Q.rep.name || "there"},\n\nI'd like to discuss some changes to our quote (currently ${fmt(c.total)}).\n`);
+  document.getElementById("changesLink").href = `mailto:${Q.rep.email}?subject=${subj}&body=${body}`;
+}
+
+function renderAll(){ renderItems(); renderSummary(); }
+function bump(idx,d){ const i=Q.items[idx]; i.qty=Math.max(0,Math.min(99,i.qty+d)); renderAll(); }
+function setQty(idx,v){ const i=Q.items[idx]; i.qty=Math.max(0,Math.min(99,parseInt(v)||0)); renderAll(); }
+
+/* ---------- Accept + clickwrap e-sign ---------- */
+function openModal(){
+  const c = calc();
+  document.getElementById("modalTitle").textContent = needsInvCheck() ? "Accept — with availability check" : "Accept this quote?";
+  document.getElementById("modalTotal").textContent = `Total: ${fmt(c.total)} (incl. White Glove Delivery & tax)`;
+  const invNote = document.getElementById("modalInvNote");
+  if(needsInvCheck()){
+    const changed = Q.items.filter(movedTooFar).map(i=>`${i.name} (${i.orig} → ${i.qty})`).join(", ");
+    invNote.style.display = "block";
+    invNote.innerHTML = `<strong>Quantities changed:</strong> ${esc(changed)}. Your rep will confirm stock and delivery timeline before the order is finalized — usually within one business day.`;
+  } else invNote.style.display = "none";
+  document.getElementById("modalForm").style.display = "block";
+  document.getElementById("acceptedMsg").style.display = "none";
+  document.getElementById("modalBg").classList.add("open");
+}
+function closeModal(){ document.getElementById("modalBg").classList.remove("open"); }
+function validateSign(){
+  const ok = document.getElementById("signName").value.trim().length > 1
+          && document.getElementById("signAgree").checked;
+  document.getElementById("confirmBtn").disabled = !ok;
+}
+
+async function submitAccept(){
+  const btn = document.getElementById("confirmBtn");
+  btn.disabled = true; btn.textContent = "Submitting…";
+  const c = calc();
+  const payload = {
+    quoteId: Q.meta.quoteId,
+    dealId: Q.meta.dealId,
+    token: Q.meta.token,
+    signature: {
+      name: document.getElementById("signName").value.trim(),
+      agreed: document.getElementById("signAgree").checked,
+      signedAt: new Date().toISOString()
+    },
+    total: c.total,
+    lineItems: Q.items.map(i => ({ sku: i.sku, name: i.name, qty: i.qty, price: i.price, quotedQty: i.orig })),
+    availabilityCheck: needsInvCheck()
+  };
+  try {
+    const res = await fetch(Q.meta.acceptUrl || "/api/accept", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error("Accept failed: " + res.status);
+    showAccepted();
+  } catch (err) {
+    console.error(err);
+    btn.disabled = false; btn.textContent = "Sign & accept";
+    alert("Something went wrong submitting your acceptance. Please try again or contact " + Q.rep.email + ".");
+  }
+}
+function showAccepted(){
+  document.getElementById("modalForm").style.display = "none";
+  const msg = document.getElementById("acceptedMsg");
+  const invLine = needsInvCheck()
+    ? ` Because you adjusted quantities, ${Q.rep.name || "your rep"} will confirm availability first — usually within one business day.`
+    : ` ${Q.rep.name || "Your rep"} will follow up with payment documents shortly.`;
+  document.getElementById("acceptedCopy").textContent =
+    `We've recorded your acceptance and let your Branch team know.` + invLine;
+  msg.style.display = "block";
+}
+
+/* ---------- Boot ---------- */
+renderHeader();
+renderAll();
+</script>
+</body>
+</html>
