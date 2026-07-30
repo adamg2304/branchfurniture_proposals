@@ -312,7 +312,14 @@ export async function fetchQuotePayload(
         )
       : Promise.resolve({ results: [] as HsObject<CompanyProperties>[] }),
     ownerId
-      ? hs<OwnerRecord>(`/crm/v3/owners/${ownerId}`)
+      ? hs<OwnerRecord>(`/crm/v3/owners/${ownerId}`).catch((err) => {
+          // crm.objects.owners.read scope may not be granted — degrade gracefully
+          logger.warn(
+            { ownerId, status: (err as { status?: number }).status },
+            "Could not fetch owner — missing scope or owner not found; rep info will be empty. Add crm.objects.owners.read scope to the private app to enable.",
+          );
+          return null as OwnerRecord | null;
+        })
       : Promise.resolve(null as OwnerRecord | null),
   ]);
 
