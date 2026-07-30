@@ -413,3 +413,83 @@ function round2(n: number): number {
 function round6(n: number): number {
   return Math.round(n * 1_000_000) / 1_000_000;
 }
+
+// ─── Accept-flow helpers ──────────────────────────────────────────────────────
+
+/**
+ * Validate the quote token and derive the associated deal ID server-side.
+ *
+ * Returns the authoritative dealId from HubSpot — callers must never rely on
+ * a client-supplied dealId for write operations.
+ *
+ * Throws TokenMismatchError when the token does not match.
+ */
+export async function validateTokenAndGetDealId(
+  quoteId: string,
+  urlToken: string,
+): Promise<string> {
+  // Fetch token + deal associations in parallel
+  const [quoteObj, dealAssocs] = await Promise.all([
+    hs<HsObject<{ quote_link_token?: string | null }>>(
+      `/crm/v3/objects/quotes/${quoteId}?properties=quote_link_token`,
+    ),
+    hs<HsAssociationsResult>(
+      `/crm/v4/objects/quotes/${quoteId}/associations/deals`,
+    ),
+  ]);
+
+  const stored = quoteObj.properties.quote_link_token;
+  if (!stored || stored !== urlToken) {
+    throw new TokenMismatchError();
+  }
+
+  const dealId = String(dealAssocs.results[0]?.toObjectId ?? "");
+  if (!dealId) {
+    throw new Error(`No deal associated with quote ${quoteId}`);
+  }
+
+  return dealId;
+}
+
+/**
+ * Create a HubSpot note engagement on a deal, recording the signature audit trail.
+ */
+export async function createAcceptanceNote(
+  dealId: string,
+  noteBody: string,
+): Promise<void> {
+  await hs<unknown>(`/crm/v3/objects/notes`, {
+    method: "POST",
+    body: JSON.stringify({
+      properties: {
+        hs_note_body: noteBody,
+        hs_timestamp: new Date().toISOString(),
+      },
+      associations: [
+        {
+          to: { id: dealId },
+          types: [
+            {
+              associationCategory: "HUBSPOT_DEFINED",
+              associationTypeId: 214, // note → deal
+            },
+          ],
+        },
+      ],
+    }),
+  });
+}
+
+/**
+ * Update the HubSpot quote's hs_status to CLOSED (accepted).
+ */
+export async function updateQuoteStatusAccepted(quoteId: string): Promise<void> {
+  await hs<unknown>(`/crm/v3/objects/quotes/${quoteId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      properties: {
+        hs_status: "CLOSED",
+      },
+    }),
+  });
+}
