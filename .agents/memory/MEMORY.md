@@ -1,0 +1,2 @@
+- [Quote route + HubSpot fetch pattern](quote-hubspot-pattern.md) — GET /api/q/:slug; slug splits on first hyphen; token validated against quote_link_token HS property.
+- [White Glove line item detection](wg-detection.md) — WG identified by name match (white glove/delivery+install); separated before building items[]; wgRate derived not stored in HS.
