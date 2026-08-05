@@ -1,0 +1,17 @@
+{
+  "name": "branch-quote-service",
+  "version": "0.1.0",
+  "description": "Dynamic web-hosted quote proposal MVP — renders live Branch quotes from HubSpot with clickwrap e-signature.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
