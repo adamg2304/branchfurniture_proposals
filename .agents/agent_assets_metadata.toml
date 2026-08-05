@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "URMqARDdUUTTeCXkjK8L5"
+uri = "file://attached_assets/branch_proposals.zip"
+type = "unspecified"
+title = "branch_proposals source files"
+description = "All API server + quote viewer source files — unzip, then push to GitHub"
