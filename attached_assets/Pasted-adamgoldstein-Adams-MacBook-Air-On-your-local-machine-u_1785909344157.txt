@@ -1,0 +1,42 @@
+adamgoldstein@Adams-MacBook-Air ~ % # On your local machine
+unzip branch_proposals.zip
+cd branch_proposals_export
+git init
+git add .
+git commit -m "Initial commit — Branch quote viewer"
+git remote add origin https://github.com/adamg2304/branch_proposals.git
+git push -u origin main
+zsh: command not found: #
+unzip:  cannot find or open branch_proposals.zip, branch_proposals.zip.zip or branch_proposals.zip.ZIP.
+cd: no such file or directory: branch_proposals_export
+Initialized empty Git repository in /Users/adamgoldstein/.git/
+warning: could not open directory 'Library/Application Support/LogiOptionsPlus/sentry_db_logioptionsplus_updater/a88d399c-e51b-4060-cdf0-f3ec44e5a77f.run/': Permission denied
+warning: could not open directory 'Library/Application Support/CallHistoryTransactions/': Operation not permitted
+warning: could not open directory 'Library/Application Support/CloudDocs/': Operation not permitted
+warning: could not open directory 'Library/Application Support/com.apple.sharedfilelist/': Operation not permitted
+warning: could not open directory 'Library/Application Support/Knowledge/': Operation not permitted
+warning: could not open directory 'Library/Application Support/com.apple.TCC/': Operation not permitted
+warning: could not open directory 'Library/Application Support/FileProvider/': Operation not permitted
+warning: could not open directory 'Library/Application Support/AddressBook/': Operation not permitted
+warning: could not open directory 'Library/Application Support/FaceTime/': Operation not permitted
+warning: could not open directory 'Library/Application Support/DifferentialPrivacy/': Operation not permitted
+warning: could not open directory 'Library/Application Support/com.apple.avfoundation/Frecents/': Operation not permitted
+warning: could not open directory 'Library/Application Support/CallHistoryDB/': Operation not permitted
+warning: could not open directory 'Library/Assistant/SiriVocabulary/': Operation not permitted
+warning: could not open directory 'Library/Daemon Containers/': Operation not permitted
+warning: could not open directory 'Library/Autosave Information/': Operation not permitted
+warning: could not open directory 'Library/IdentityServices/': Operation not permitted
+warning: could not open directory 'Library/Calendars/': Operation not permitted
+warning: could not open directory 'Library/Messages/': Operation not permitted
+warning: could not open directory 'Library/HomeKit/': Operation not permitted
+warning: could not open directory 'Library/Sharing/': Operation not permitted
+warning: could not open directory 'Library/com.apple.aiml.instrumentation/': Operation not permitted
+warning: could not open directory 'Library/Mail/': Operation not permitted
+warning: could not open directory 'Library/Trial/': Operation not permitted
+warning: could not open directory 'Library/AppleMediaServices/': Operation not permitted
+warning: could not open directory 'Library/DuetExpertCenter/': Operation not permitted
+warning: could not open directory 'Library/Accounts/': Operation not permitted
+warning: could not open directory 'Library/Safari/': Operation not permitted
+warning: could not open directory 'Library/Biome/': Operation not permitted
+warning: could not open directory 'Library/IntelligencePlatform/': Operation not permitted
+warning: could not open directory 'Library/Shortcuts/': Operation not permitted
