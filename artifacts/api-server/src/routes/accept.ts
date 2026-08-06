@@ -21,6 +21,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { and, eq, isNull, lt, sql } from "drizzle-orm";
 import {
   validateTokenAndGetDealId,
+  fetchQuoteDataForAcceptance,
   createAcceptanceNote,
   updateQuoteStatusAccepted,
   TokenMismatchError,
@@ -31,13 +32,16 @@ import { db, quoteAcceptancesTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
+/**
+ * Return the client's IP address.
+ *
+ * app.set("trust proxy", 1) is configured in app.ts, so Express validates
+ * the X-Forwarded-For chain against the trusted proxy hop and exposes the
+ * real client address via req.ip.  Reading the raw header directly would
+ * allow any client to spoof the IP field in the audit trail.
+ */
 function getClientIp(req: Request): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (forwarded) {
-    const first = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(",")[0];
-    return (first ?? "").trim();
-  }
-  return req.socket?.remoteAddress ?? "unknown";
+  return req.ip ?? req.socket?.remoteAddress ?? "unknown";
 }
 
 function buildNoteBody(opts: {
@@ -72,6 +76,38 @@ function buildNoteBody(opts: {
     }),
   ];
   return lines.filter((l) => l !== undefined).join("\n");
+}
+
+/**
+ * Determine server-side whether the signer adjusted any quantities relative to
+ * the original HubSpot quote.
+ *
+ * We match client items to HubSpot items by SKU (preferred) then by name.
+ * If any client-submitted quantity differs from HubSpot's recorded quantity,
+ * the availability-check flag is raised.  Unmatched client items are ignored
+ * (they cannot be verified and do not affect the authoritative note content).
+ */
+function deriveAvailabilityCheck(
+  clientItems: Array<{ sku?: string; name?: string; qty: number }>,
+  hsItems: Array<{ sku: string; name: string; qty: number }>,
+): boolean {
+  for (const client of clientItems) {
+    // Find the matching HubSpot line item
+    const match =
+      (client.sku
+        ? hsItems.find((h) => h.sku && h.sku === client.sku)
+        : undefined) ??
+      (client.name
+        ? hsItems.find(
+            (h) => h.name.toLowerCase() === client.name!.toLowerCase(),
+          )
+        : undefined);
+
+    if (match && client.qty !== match.qty) {
+      return true;
+    }
+  }
+  return false;
 }
 
 async function fireZapierWebhook(payload: Record<string, unknown>): Promise<void> {
@@ -144,14 +180,23 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
 
   const ip = getClientIp(req);
   const ua = String(req.headers["user-agent"] ?? "unknown");
-  const signedAt = body.signature.signedAt ?? new Date().toISOString();
+  // signedAt is always set server-side — the client-supplied value is ignored
+  // to prevent a signer from backdating or forging the acceptance timestamp.
+  const signedAt = new Date().toISOString();
 
   try {
     // ── 1. Validate token + derive the authoritative dealId from HubSpot ─────
     //    The client-supplied dealId is intentionally ignored for all writes.
     //    We look up the deal association server-side so no client can redirect
     //    note writes to an arbitrary HubSpot deal.
-    const validated: ValidatedQuote = await validateTokenAndGetDealId(quoteId, body.token);
+    //
+    //    In parallel, fetch the authoritative quote data (total + line items)
+    //    so the audit note is built from HubSpot's own records rather than
+    //    client-supplied figures that could be tampered with.
+    const [validated, authoritative] = await Promise.all([
+      validateTokenAndGetDealId(quoteId, body.token),
+      fetchQuoteDataForAcceptance(quoteId),
+    ]);
     const { dealId: authorizedDealId, status: currentStatus } = validated;
 
     // ── 1a. Fast serial-replay pre-check ────────────────────────────────────
@@ -162,6 +207,16 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
       res.status(409).json({ error: "This quote has already been accepted." });
       return;
     }
+
+    // ── 1b. Derive availabilityCheck server-side ────────────────────────────
+    //    Compare client-submitted quantities against HubSpot's authoritative
+    //    quantities.  Any discrepancy means the order quantities were adjusted
+    //    from the original quote and the availability-check flag must be raised.
+    //    We never trust the client-supplied flag directly.
+    const availabilityCheck = deriveAvailabilityCheck(
+      body.lineItems ?? [],
+      authoritative.lineItems,
+    );
 
     // ── 2. Atomic claim — transactional INSERT with lease-based takeover ────
     //    A row in quote_acceptances with quote_id as primary key is the single
@@ -232,15 +287,18 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
     }
 
     // ── 3. Build note text ───────────────────────────────────────────────────
+    //    All financial figures come from HubSpot (authoritative), not from the
+    //    client request body.  This prevents a signer from recording a
+    //    misleading total, fabricated line items, or a forged timestamp.
     const noteBody = buildNoteBody({
       signerName: body.signature.name,
       signedAt,
       ip,
       ua,
-      total: body.total ?? 0,
+      total: authoritative.total,
       quoteId,
-      availabilityCheck: body.availabilityCheck ?? false,
-      lineItems: body.lineItems ?? [],
+      availabilityCheck,
+      lineItems: authoritative.lineItems,
     });
 
     // ── 4. Write to HubSpot + fire webhook in parallel ───────────────────────
@@ -252,8 +310,8 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
       dealId: authorizedDealId,
       signerName: body.signature.name,
       signedAt,
-      total: body.total ?? 0,
-      availabilityCheck: body.availabilityCheck ?? false,
+      total: authoritative.total,
+      availabilityCheck,
       ip,
       userAgent: ua,
     };

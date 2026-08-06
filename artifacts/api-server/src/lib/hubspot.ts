@@ -495,6 +495,72 @@ export async function createAcceptanceNote(
   });
 }
 
+// ─── Authoritative quote data for acceptance note ─────────────────────────────
+
+export interface AuthoritativeLineItem {
+  sku: string;
+  name: string;
+  qty: number;
+  price: number;
+}
+
+export interface AuthoritativeQuoteData {
+  /** Server-computed total from hs_quote_amount (already includes tax/discount). */
+  total: number;
+  lineItems: AuthoritativeLineItem[];
+}
+
+/**
+ * Fetch the authoritative quote total and line items from HubSpot for use in
+ * the acceptance audit note.  Call this AFTER token validation so the token
+ * check is the gate; this function does not re-validate the token.
+ *
+ * Only product line items are returned (white-glove / delivery+install items
+ * are filtered out, mirroring the behaviour of fetchQuotePayload).
+ */
+export async function fetchQuoteDataForAcceptance(
+  quoteId: string,
+): Promise<AuthoritativeQuoteData> {
+  // Fetch the quote amount + line-item associations in parallel
+  const [quoteObj, lineItemAssocs] = await Promise.all([
+    hs<HsObject<Pick<QuoteProperties, "hs_quote_amount">>>(
+      `/crm/v3/objects/quotes/${quoteId}?properties=hs_quote_amount`,
+    ),
+    hs<HsAssociationsResult>(
+      `/crm/v4/objects/quotes/${quoteId}/associations/line_items`,
+    ),
+  ]);
+
+  const total = parseNum(quoteObj.properties.hs_quote_amount);
+
+  const lineItemIds = lineItemAssocs.results.map((r) => String(r.toObjectId));
+  if (lineItemIds.length === 0) {
+    return { total, lineItems: [] };
+  }
+
+  const batch = await hs<HsBatchResult<LineItemProperties>>(
+    `/crm/v3/objects/line_items/batch/read`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        inputs: lineItemIds.map((id) => ({ id })),
+        properties: ["name", "quantity", "price", "hs_sku"],
+      }),
+    },
+  );
+
+  const lineItems: AuthoritativeLineItem[] = batch.results
+    .filter((li) => !isWhiteGlove(li.properties.name))
+    .map((li) => ({
+      sku: li.properties.hs_sku ?? "",
+      name: li.properties.name ?? "",
+      qty: Math.round(parseNum(li.properties.quantity)) || 1,
+      price: parseNum(li.properties.price),
+    }));
+
+  return { total, lineItems };
+}
+
 /**
  * Update the HubSpot quote's hs_status to CLOSED (accepted).
  */
