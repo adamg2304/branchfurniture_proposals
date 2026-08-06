@@ -96,9 +96,20 @@
   .wg-card.included li::before{content:"✓";position:absolute;left:2px;color:var(--green);font-weight:700}
   .wg-card.excluded li::before{content:"—";position:absolute;left:2px;color:var(--muted);font-weight:700}
 
-  details{background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:10px}
-  summary{cursor:pointer;font-weight:600;padding:16px 20px;font-size:15px}
-  details .body{padding:0 20px 18px;color:#3a3f37;font-size:14px}
+  /* Single terms toggle card */
+  .terms-card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .terms-summary{display:flex;align-items:center;gap:12px;cursor:pointer;padding:22px 26px;list-style:none;user-select:none}
+  .terms-summary::-webkit-details-marker{display:none}
+  .terms-summary-title{font-family:var(--serif);font-size:26px;font-weight:400;color:var(--green-deep);letter-spacing:-.01em}
+  .terms-summary-sub{font-size:13.5px;color:var(--muted);flex:1;margin-left:4px}
+  .terms-chevron{font-size:22px;color:var(--muted);transition:transform .2s;line-height:1;margin-left:auto}
+  .terms-card[open] .terms-chevron{transform:rotate(90deg)}
+  .terms-body{padding:0 26px 24px;border-top:1px solid var(--line)}
+  .terms-item{padding:14px 0;border-bottom:1px solid var(--line);font-size:14px;color:#3a3f37}
+  .terms-item strong{display:block;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:5px}
+  .terms-item p{line-height:1.65}
+  .terms-footer{font-size:12.5px;color:var(--muted);margin-top:18px}
+  .terms-footer a{color:var(--green)}
 
   footer{background:var(--green-deep);color:var(--cream);text-align:center;padding:54px 0}
   footer .brand{font-size:30px;margin-bottom:8px}
@@ -475,19 +486,26 @@
 <!-- TERMS -->
 <section style="padding-top:0">
   <div class="wrap">
-    <h2 class="section-title">Terms &amp; Conditions</h2>
-    <p class="section-sub">The fine print, in plain sight.</p>
-    <details><summary>1. Quote validity</summary><div class="body">Quotes/Invoices are valid for 30 days, after which product pricing is subject to change.</div></details>
-    <details><summary>2. Floor plans</summary><div class="body">Should there be a predetermined furniture layout ("Floor Plan") for your office space, all furniture will be assembled and placed according to the Floor Plan. Branch is not liable for delivery problems arising from inaccuracies in the Floor Plan. When a discrepancy arises between the Floor Plan and Quote, the Quote is the source of truth.</div></details>
-    <details><summary>3. Payments</summary><div class="body">Orders under $15,000 require payment in full prior to processing. Orders over $15,000 require a minimum 50% deposit prior to processing, with the remaining balance due at least 5 business days before delivery. Payment is deemed received once funds reflect in Branch's bank account. Credit card payments are subject to a 2.9% processing fee. Purchase Order payment terms supersede standard Branch terms where agreed in writing prior to processing.</div></details>
-    <details><summary>4. Insurance</summary><div class="body">Clients will ensure they hold adequate insurance to facilitate furniture delivery and installation in the premises, as required by building management.</div></details>
-    <details><summary>5. Delivery options</summary><div class="body"><strong>White Glove Delivery:</strong> delivery and installation of products in your premises. A standard 15% installation fee applies. Additional fees may apply where union labor, after-hours delivery, or movement of furniture through stairwells is required. Branch and its partners do not connect electrical or plumbing services.<br><br><strong>Standard Delivery:</strong> receipt via parcel or LTL shipment. Clients are responsible for assembly and packaging disposal. Freight/LTL shipments are unloaded to a ground-level area outside your office; clients transport items into the premises.</div></details>
-    <details><summary>6. White glove installation</summary><div class="body">Enterprise quotes include White Glove installation fees except where Standard Delivery is requested. An additional installation fee may be charged for changes made to an order after it has been placed.</div></details>
-    <details><summary>7. Condition of job site</summary><div class="body">Client is responsible for ensuring the premises can receive furniture. Branch may refuse delivery to premises undergoing construction, with areas that aren't clear, or deemed unsafe. Additional charges for redelivery and storage are the client's responsibility.</div></details>
-    <details><summary>8. Delivery information</summary><div class="body">Client will provide the correct delivery address, building delivery hours, union labor requirements, elevator booking requirements, and Certificate of Insurance requirements. Inaccurate information may result in delays, service changes, or additional fees.</div></details>
-    <details><summary>9. Damages upon delivery</summary><div class="body">Client is responsible for inspecting delivery and noting missing, incorrect, or damaged items. Report damages to the installation team or enterprise@branchfurniture.com within 24 hours of delivery. Branch will respond with remedy action in a reasonable and timely manner.</div></details>
-    <details><summary>10. Returns</summary><div class="body">Returns accepted within 30 days of purchase. Custom products, shipping fees, and installation fees are non-refundable. Products must be in like-new condition. Return shipping costs and a 20% restocking fee are deducted from the refund. Products shipped outside the contiguous US or Canadian provinces are final sale.</div></details>
-    <p style="font-size:13px;color:var(--muted);margin-top:14px">Full terms at <a href="https://www.branchfurniture.com/pages/terms-conditions" style="color:var(--green)">branchfurniture.com/pages/terms-conditions</a> · Questions? sales@branchfurniture.com</p>
+    <details class="terms-card">
+      <summary class="terms-summary">
+        <span class="terms-summary-title">Terms &amp; Conditions</span>
+        <span class="terms-summary-sub">The fine print, in plain sight.</span>
+        <span class="terms-chevron" aria-hidden="true">›</span>
+      </summary>
+      <div class="terms-body">
+        <div class="terms-item"><strong>1. Quote validity</strong><p>Quotes/Invoices are valid for 30 days, after which product pricing is subject to change.</p></div>
+        <div class="terms-item"><strong>2. Floor plans</strong><p>Should there be a predetermined furniture layout ("Floor Plan") for your office space, all furniture will be assembled and placed according to the Floor Plan. Branch is not liable for delivery problems arising from inaccuracies in the Floor Plan. When a discrepancy arises between the Floor Plan and Quote, the Quote is the source of truth.</p></div>
+        <div class="terms-item"><strong>3. Payments</strong><p>Orders under $15,000 require payment in full prior to processing. Orders over $15,000 require a minimum 50% deposit prior to processing, with the remaining balance due at least 5 business days before delivery. Payment is deemed received once funds reflect in Branch's bank account. Credit card payments are subject to a 2.9% processing fee. Purchase Order payment terms supersede standard Branch terms where agreed in writing prior to processing.</p></div>
+        <div class="terms-item"><strong>4. Insurance</strong><p>Clients will ensure they hold adequate insurance to facilitate furniture delivery and installation in the premises, as required by building management.</p></div>
+        <div class="terms-item"><strong>5. Delivery options</strong><p><strong>White Glove Delivery:</strong> delivery and installation of products in your premises. A standard 15% installation fee applies. Additional fees may apply where union labor, after-hours delivery, or movement of furniture through stairwells is required. Branch and its partners do not connect electrical or plumbing services.<br><br><strong>Standard Delivery:</strong> receipt via parcel or LTL shipment. Clients are responsible for assembly and packaging disposal. Freight/LTL shipments are unloaded to a ground-level area outside your office; clients transport items into the premises.</p></div>
+        <div class="terms-item"><strong>6. White glove installation</strong><p>Enterprise quotes include White Glove installation fees except where Standard Delivery is requested. An additional installation fee may be charged for changes made to an order after it has been placed.</p></div>
+        <div class="terms-item"><strong>7. Condition of job site</strong><p>Client is responsible for ensuring the premises can receive furniture. Branch may refuse delivery to premises undergoing construction, with areas that aren't clear, or deemed unsafe. Additional charges for redelivery and storage are the client's responsibility.</p></div>
+        <div class="terms-item"><strong>8. Delivery information</strong><p>Client will provide the correct delivery address, building delivery hours, union labor requirements, elevator booking requirements, and Certificate of Insurance requirements. Inaccurate information may result in delays, service changes, or additional fees.</p></div>
+        <div class="terms-item"><strong>9. Damages upon delivery</strong><p>Client is responsible for inspecting delivery and noting missing, incorrect, or damaged items. Report damages to the installation team or enterprise@branchfurniture.com within 24 hours of delivery. Branch will respond with remedy action in a reasonable and timely manner.</p></div>
+        <div class="terms-item" style="border-bottom:none"><strong>10. Returns</strong><p>Returns accepted within 30 days of purchase. Custom products, shipping fees, and installation fees are non-refundable. Products must be in like-new condition. Return shipping costs and a 20% restocking fee are deducted from the refund. Products shipped outside the contiguous US or Canadian provinces are final sale.</p></div>
+        <p class="terms-footer">Full terms at <a href="https://www.branchfurniture.com/pages/terms-conditions">branchfurniture.com/pages/terms-conditions</a> · Questions? <a href="mailto:sales@branchfurniture.com">sales@branchfurniture.com</a></p>
+      </div>
+    </details>
   </div>
 </section>
 
