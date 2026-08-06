@@ -423,22 +423,30 @@ function round6(n: number): number {
 
 // ─── Accept-flow helpers ──────────────────────────────────────────────────────
 
+export interface ValidatedQuote {
+  dealId: string;
+  /** Current hs_status value from HubSpot (e.g. "CLOSED", "DRAFT", "PENDING_SIGNATURE"). */
+  status: string | null;
+}
+
 /**
  * Validate the quote token and derive the associated deal ID server-side.
  *
- * Returns the authoritative dealId from HubSpot — callers must never rely on
- * a client-supplied dealId for write operations.
+ * Returns the authoritative dealId and the quote's current hs_status so
+ * callers can gate on whether the quote has already been accepted.
+ *
+ * Callers must never rely on a client-supplied dealId for write operations.
  *
  * Throws TokenMismatchError when the token does not match.
  */
 export async function validateTokenAndGetDealId(
   quoteId: string,
   urlToken: string,
-): Promise<string> {
-  // Fetch token + deal associations in parallel
+): Promise<ValidatedQuote> {
+  // Fetch token + status + deal associations in parallel
   const [quoteObj, dealAssocs] = await Promise.all([
-    hs<HsObject<{ quote_link_token?: string | null }>>(
-      `/crm/v3/objects/quotes/${quoteId}?properties=quote_link_token`,
+    hs<HsObject<{ quote_link_token?: string | null; hs_status?: string | null }>>(
+      `/crm/v3/objects/quotes/${quoteId}?properties=quote_link_token,hs_status`,
     ),
     hs<HsAssociationsResult>(
       `/crm/v4/objects/quotes/${quoteId}/associations/deals`,
@@ -455,7 +463,7 @@ export async function validateTokenAndGetDealId(
     throw new Error(`No deal associated with quote ${quoteId}`);
   }
 
-  return dealId;
+  return { dealId, status: quoteObj.properties.hs_status ?? null };
 }
 
 /**

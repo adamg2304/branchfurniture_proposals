@@ -18,13 +18,16 @@
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
+import { and, eq, isNull, lt, sql } from "drizzle-orm";
 import {
   validateTokenAndGetDealId,
   createAcceptanceNote,
   updateQuoteStatusAccepted,
   TokenMismatchError,
+  type ValidatedQuote,
 } from "../lib/hubspot.js";
 import { logger } from "../lib/logger.js";
+import { db, quoteAcceptancesTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -148,9 +151,87 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
     //    The client-supplied dealId is intentionally ignored for all writes.
     //    We look up the deal association server-side so no client can redirect
     //    note writes to an arbitrary HubSpot deal.
-    const authorizedDealId = await validateTokenAndGetDealId(quoteId, body.token);
+    const validated: ValidatedQuote = await validateTokenAndGetDealId(quoteId, body.token);
+    const { dealId: authorizedDealId, status: currentStatus } = validated;
 
-    // ── 2. Build note text ───────────────────────────────────────────────────
+    // ── 1a. Fast serial-replay pre-check ────────────────────────────────────
+    //    If HubSpot already shows CLOSED we can return 409 immediately without
+    //    touching the database or performing any writes.
+    if (currentStatus === "CLOSED") {
+      logger.warn({ quoteId }, "Replay attempt on already-accepted quote (HubSpot status=CLOSED)");
+      res.status(409).json({ error: "This quote has already been accepted." });
+      return;
+    }
+
+    // ── 2. Atomic claim — transactional INSERT with lease-based takeover ────
+    //    A row in quote_acceptances with quote_id as primary key is the single
+    //    source of truth for who owns the acceptance.  We use a SERIALIZABLE
+    //    transaction to:
+    //      a) DELETE any stale uncompleted claim whose lease has expired
+    //         (claimed_at > CLAIM_LEASE_MS ago, completed_at IS NULL)
+    //      b) INSERT the new claim
+    //    If a fresh claim already exists (by another concurrent request or a
+    //    recent in-flight attempt) the INSERT will conflict and the transaction
+    //    rolls back — we catch that and return 409.
+    //
+    //    Lease expiry (120 s) bounds how long a crashed / timed-out request can
+    //    block the critical acceptance path.
+    const CLAIM_LEASE_MS = 120_000; // 2 minutes
+
+    let claimInserted = false;
+    try {
+      await db.transaction(async (tx) => {
+        // Remove any expired uncompleted claim so the signer can retry after a
+        // prior request crashed or timed out before releasing.
+        const leaseExpiry = new Date(Date.now() - CLAIM_LEASE_MS);
+        await tx
+          .delete(quoteAcceptancesTable)
+          .where(
+            and(
+              eq(quoteAcceptancesTable.quoteId, quoteId),
+              isNull(quoteAcceptancesTable.completedAt),
+              lt(quoteAcceptancesTable.claimedAt, leaseExpiry),
+            ),
+          );
+
+        // Claim ownership — throws on unique conflict if a fresh claim exists.
+        await tx.insert(quoteAcceptancesTable).values({
+          quoteId,
+          signerName: body.signature.name,
+          ip,
+        });
+      });
+      claimInserted = true;
+    } catch (claimErr) {
+      // Distinguish a unique-constraint conflict (expected) from an unexpected
+      // database error so we do not silently swallow real failures.
+      const pg = claimErr as { code?: string };
+      if (pg.code === "23505") {
+        // Unique violation — a fresh (non-expired) claim already exists.
+        const existing = await db
+          .select()
+          .from(quoteAcceptancesTable)
+          .where(eq(quoteAcceptancesTable.quoteId, quoteId))
+          .limit(1);
+        const row = existing[0];
+        if (row?.completedAt) {
+          logger.warn({ quoteId }, "Replay attempt — acceptance already completed (DB claim)");
+          res.status(409).json({ error: "This quote has already been accepted." });
+        } else {
+          // A fresh in-flight request owns the claim.
+          logger.warn({ quoteId }, "Concurrent acceptance attempt — claim already held");
+          res.status(409).json({
+            error: "This quote is currently being processed. Please try again in a moment.",
+          });
+        }
+      } else {
+        // Real database error — propagate so the outer catch returns 500.
+        throw claimErr;
+      }
+      return;
+    }
+
+    // ── 3. Build note text ───────────────────────────────────────────────────
     const noteBody = buildNoteBody({
       signerName: body.signature.name,
       signedAt,
@@ -162,7 +243,9 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
       lineItems: body.lineItems ?? [],
     });
 
-    // ── 3. Write to HubSpot + fire webhook in parallel ───────────────────────
+    // ── 4. Write to HubSpot + fire webhook in parallel ───────────────────────
+    //    If any of these fail we release the claim (delete the DB row) so the
+    //    signer can retry.  On success we stamp completed_at to prevent replays.
     const zapierPayload = {
       event: "quote_accepted",
       quoteId,
@@ -175,13 +258,35 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
       userAgent: ua,
     };
 
-    await Promise.all([
-      createAcceptanceNote(authorizedDealId, noteBody),
-      updateQuoteStatusAccepted(quoteId),
-      fireZapierWebhook(zapierPayload),
-    ]);
+    try {
+      await Promise.all([
+        createAcceptanceNote(authorizedDealId, noteBody),
+        updateQuoteStatusAccepted(quoteId),
+        fireZapierWebhook(zapierPayload),
+      ]);
+    } catch (writeErr) {
+      // Release the claim so the signer can retry.
+      if (claimInserted) {
+        await db
+          .delete(quoteAcceptancesTable)
+          .where(eq(quoteAcceptancesTable.quoteId, quoteId))
+          .catch((delErr) => logger.error({ delErr, quoteId }, "Failed to release acceptance claim after write error"));
+      }
+      throw writeErr;
+    }
 
-    logger.info({ quoteId, dealId: body.dealId, signerName: body.signature.name }, "Quote accepted");
+    // Mark the claim complete — future replays will see a non-null completed_at.
+    await db
+      .update(quoteAcceptancesTable)
+      .set({ completedAt: new Date() })
+      .where(eq(quoteAcceptancesTable.quoteId, quoteId))
+      .catch((stampErr) =>
+        // Non-fatal: HubSpot status is already CLOSED, so the fast pre-check
+        // above will catch replays even if this stamp fails.
+        logger.warn({ stampErr, quoteId }, "Failed to stamp completed_at on acceptance claim"),
+      );
+
+    logger.info({ quoteId, dealId: authorizedDealId, signerName: body.signature.name }, "Quote accepted");
 
     res.status(200).json({ ok: true, message: "Quote accepted successfully" });
   } catch (err) {
