@@ -1,0 +1,31 @@
+We're in business — and it looks great. Confirming from your screenshots: the **blue is live** (chip + "Accept this quote" button), **Fraunces is rendering beautifully** (that high-contrast display serif on "Prepared for Chai Travel," "Your quote," "White Glove Delivery," "Terms & Conditions"), and **Inter** on the body. The blue reads vivid against the green — not muted. Baseline confirmed.
+
+"Go to town" — I'll stay disciplined and do one coherent batch at a time so you can react. First up: **type scale & hierarchy** (the foundation, now that Fraunces is in). Reading the render, a few things stand out to fix:
+
+- The hero headline and section titles are close in size — not enough hierarchy jump.
+- **The "Total" — your signature moment — is only 21px**, barely bigger than the rows above it. It should anchor the whole rail.
+- Fraunces wants tighter line-height and a hair of negative tracking at display sizes to get that structural feel.
+
+Let me pull the exact current lines and apply a tuned scale.
+
+Now regenerate the preview copy from canonical (the sync step), verify they match, and commit both:
+
+Pushed (`29ce421`) — pull, refresh, and take a look. This batch is **type scale & hierarchy**:
+
+- **Hero headline** 40→46px, tighter line-height + slight negative tracking (Fraunces gets more commanding at display size)
+- **Section titles** 28→30px with added weight
+- **The Total** 21→**28px** — now the clear anchor of the "Your investment" rail
+- "Your investment" heading and White Glove card titles nudged up for rhythm
+
+**What to check:**
+1. Does the hero headline now clearly out-rank the section titles (real hierarchy jump)?
+2. Is the **Total** now the unmistakable signature moment in the green rail?
+3. Any awkward Fraunces wrapping or tracking that's too tight?
+
+**One thing I spotted while in there** (didn't touch it yet — your call): the **Discount value** `-$1,218.64` renders in a muted tan-gold (`#d8c9a0`) — the last lingering gold-family color on the page. Options: leave it (reads as "savings"), shift it to cream/white for consistency, or a soft light tint. I'll fold your preference into the next batch.
+
+**Next batches on deck** — tell me which to take (or say "keep going" and I'll go in this order):
+1. **Summary rail polish** — discount color, row spacing/dividers, tighten the rail into the signature element it should be
+2. **Hero content** — should it carry the total or a "prepared by [rep]" line, or stay lean?
+3. **Line-item density** — the spec tags come through mostly blank from live HubSpot; drop them or pull a real dimensions field
+4. **Product images** — wire the `hs_images` fallback so the box icon reads as intentional

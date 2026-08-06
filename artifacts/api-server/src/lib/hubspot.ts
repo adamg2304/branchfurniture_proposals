@@ -125,6 +125,30 @@ function parseNum(v: string | null | undefined): number {
   return parseFloat(v) || 0;
 }
 
+/**
+ * Parse the hs_images field from a HubSpot line item.
+ *
+ * HubSpot stores hs_images as a JSON-encoded array of image objects:
+ *   [{"url":"https://...","type":"IMAGE","width":200,"height":200}, ...]
+ * It may also arrive as a plain URL string (older records).
+ * Returns the first image URL, or "" if none can be extracted.
+ */
+function parseHsImages(raw: string | null | undefined): string {
+  if (!raw) return "";
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      const first = parsed.find((item) => item?.url);
+      return first?.url ?? "";
+    }
+    // Parsed to something other than an array (unexpected) — ignore
+    return "";
+  } catch {
+    // Not JSON — treat as a plain URL if it looks like one
+    return raw.startsWith("http") ? raw : "";
+  }
+}
+
 function isWhiteGlove(name: string | null | undefined): boolean {
   if (!name) return false;
   const n = name.toLowerCase();
@@ -373,7 +397,7 @@ export async function fetchQuotePayload(
       price,
       qty,
       orig: qty,
-      imageUrl: p.hs_images ?? "",
+      imageUrl: parseHsImages(p.hs_images),
       productUrl: p.hs_url ?? "",
     };
   });
