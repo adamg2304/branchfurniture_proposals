@@ -25,14 +25,14 @@
     --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:var(--sans);color:var(--ink);background:var(--paper);line-height:1.55;padding-bottom:74px}
+  body{font-family:var(--sans);color:var(--ink);background:var(--paper);line-height:1.55}
   .wrap{max-width:1040px;margin:0 auto;padding:0 24px}
   h1,h2,h3,.brand{font-family:var(--serif)}
 
   .hero{background:var(--green);color:var(--cream);padding:48px 0 40px}
   .brand{font-size:34px;letter-spacing:.5px}
   .brand-logo{height:36px;width:auto;display:block;mix-blend-mode:screen}
-  footer .brand-logo{height:30px}
+  footer .brand-logo{height:30px;margin:0 auto}
   .hero .kicker{text-transform:uppercase;letter-spacing:.18em;font-size:12px;opacity:.75;margin-top:28px}
   .hero h1{font-size:46px;font-weight:400;margin:8px 0 6px;line-height:1.08;letter-spacing:-.02em}
   .hero .sub{font-size:17px;opacity:.85}
@@ -113,7 +113,7 @@
   .terms-footer{font-size:12.5px;color:var(--muted);margin-top:18px}
   .terms-footer a{color:var(--green)}
 
-  footer{background:var(--green);color:var(--cream);text-align:center;padding:54px 0}
+  footer{background:var(--green);color:var(--cream);text-align:center;padding:54px 0 calc(54px + 74px)}
   footer .brand{font-size:30px;margin-bottom:8px}
   footer p{font-size:13.5px;opacity:.75}
   footer a{color:var(--cream)}
