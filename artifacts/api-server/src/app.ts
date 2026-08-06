@@ -3,10 +3,18 @@ import cors from "cors";
 import { rateLimit } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import router from "./routes";
+import healthRouter from "./routes/health";
 import { logger } from "./lib/logger";
 import { PgRateLimitStore } from "./lib/pgRateLimitStore";
 
 const app: Express = express();
+
+// ── Health check (registered before all other middleware) ─────────────────
+// The deployment startup probe hits /api/healthz on every cold start.
+// Registering it here — ahead of pino-http, CORS, and rate limiters —
+// ensures an immediate 200 the moment the process is listening, rather
+// than waiting for heavier middleware to initialise first.
+app.use("/api", healthRouter);
 
 app.use(
   pinoHttp({

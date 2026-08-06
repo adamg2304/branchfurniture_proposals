@@ -30,3 +30,9 @@ NODE_ENV = "production"
 
 [services.production.health.startup]
 path = "/api/healthz"
+# Allow up to 30 probe failures (at ~2 s each = 60 s) before the
+# deployment is considered unhealthy. Node.js cold starts — including
+# module loading and the PostgreSQL pool initialisation — typically
+# finish within 5–10 seconds; 60 s gives ample headroom.
+failureThreshold = 30
+periodSeconds = 2
