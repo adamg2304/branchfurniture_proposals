@@ -72,6 +72,14 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    proxy: {
+      // Forward /api/* to the api-server in dev so accept + quote routes work
+      // from the quote-viewer dev preview without a separate domain.
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port,

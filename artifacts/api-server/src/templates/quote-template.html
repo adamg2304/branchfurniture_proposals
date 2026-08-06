@@ -54,11 +54,12 @@
   .item .name a{color:var(--ink);text-decoration:none;border-bottom:1.5px solid var(--line)}
   .item .name a:hover{border-bottom-color:var(--accent)}
   .item .spec{color:var(--muted);font-size:13px}
+  .item .sku{color:var(--muted);font-size:12px;margin-top:1px;opacity:.75}
   .qtynote{font-size:12px;color:var(--amber);font-weight:600;margin-top:3px}
   .qty{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden}
   .qty button{width:32px;height:34px;border:none;background:var(--cream);font-size:17px;cursor:pointer;color:var(--green);font-weight:700}
   .qty button:hover{background:#eae5da}
-  .qty input{width:44px;height:34px;border:none;text-align:center;font-size:14.5px;font-weight:600;background:#fff}
+  .qty input{width:44px;height:34px;border:none;text-align:center;font-size:14.5px;font-weight:600;background:#fff;padding:0;-webkit-appearance:none;-moz-appearance:textfield;appearance:textfield}
   .item .line-total{font-weight:600;font-size:15.5px;min-width:92px;text-align:right}
   .item .unit{color:var(--muted);font-size:12.5px;text-align:right}
 
@@ -282,7 +283,7 @@
    ===================================================================== */
 const Q = window.QUOTE;
 
-const fmt = n => "$" + Number(n).toLocaleString("en-US",{minimumFractionDigits:2, maximumFractionDigits:2});
+const fmt = n => { const v = Number(n); return "$" + v.toLocaleString("en-US", v % 1 === 0 ? {minimumFractionDigits:0,maximumFractionDigits:0} : {minimumFractionDigits:2,maximumFractionDigits:2}); };
 const fmtDate = s => new Date(s).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
 const esc = s => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
@@ -334,7 +335,8 @@ function renderItems(){
       ${thumbHTML(it)}
       <div>
         <div class="name">${nameHTML}</div>
-        <div class="spec">${esc(it.spec)}${it.sku ? " · SKU " + esc(it.sku) : ""}</div>
+        <div class="spec">${esc(it.spec)}</div>
+        ${it.sku ? `<div class="sku">SKU ${esc(it.sku)}</div>` : ""}
         ${moved?`<div class="qtynote">Quantity changed from ${it.orig} — availability check applies</div>`:""}
       </div>
       <div class="qty">
