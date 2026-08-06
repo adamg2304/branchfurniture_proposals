@@ -59,14 +59,15 @@
   .qty{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden}
   .qty button{width:32px;height:34px;border:none;background:var(--cream);font-size:17px;cursor:pointer;color:var(--green);font-weight:700}
   .qty button:hover{background:#eae5da}
-  .qty input{width:44px;height:34px;border:none;text-align:center;font-size:14.5px;font-weight:600;background:#fff;padding:0;-webkit-appearance:none;-moz-appearance:textfield;appearance:textfield}
+  .qty input{width:44px;height:34px;border:none;text-align:center;font-size:14.5px;font-weight:600;background:#fff;padding:0;-webkit-appearance:none;-moz-appearance:textfield;appearance:textfield;line-height:34px}
+  .qty input::-webkit-outer-spin-button,.qty input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   .item .line-total{font-weight:600;font-size:15.5px;min-width:92px;text-align:right}
   .item .unit{color:var(--muted);font-size:12.5px;text-align:right}
 
   .summary-grid{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start}
   @media(max-width:860px){.summary-grid{grid-template-columns:1fr}}
   .summary{background:var(--green);color:var(--cream);border-radius:14px;padding:26px;position:sticky;top:18px}
-  .summary h3{font-size:21px;font-weight:500;margin-bottom:16px}
+  .summary h3{font-size:28px;font-weight:400;margin-bottom:16px;letter-spacing:-.01em}
   .srow{display:flex;justify-content:space-between;font-size:14.5px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.14)}
   .srow.total{border-bottom:none;font-size:28px;font-weight:700;font-family:var(--serif);letter-spacing:-.01em;padding-top:16px;margin-top:2px}
   .srow.discount span:last-child{color:#c8a86a}
@@ -284,6 +285,7 @@
 const Q = window.QUOTE;
 
 const fmt = n => { const v = Number(n); return "$" + v.toLocaleString("en-US", v % 1 === 0 ? {minimumFractionDigits:0,maximumFractionDigits:0} : {minimumFractionDigits:2,maximumFractionDigits:2}); };
+const fmtFixed = n => "$" + Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtDate = s => new Date(s).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
 const esc = s => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
@@ -345,8 +347,8 @@ function renderItems(){
         <button onclick="bump(${idx},1)" aria-label="increase">+</button>
       </div>
       <div>
-        <div class="line-total">${fmt(Math.round(it.price*it.qty*100)/100)}</div>
-        <div class="unit">${fmt(it.price)} each</div>
+        <div class="line-total">${fmtFixed(Math.round(it.price*it.qty*100)/100)}</div>
+        <div class="unit">${fmtFixed(it.price)} each</div>
       </div>
     </div>`;
   }).join("");
@@ -381,7 +383,7 @@ function needsAnyEdit(){ return Q.items.some(i => i.qty !== i.orig); }
 
 function renderSummary(){
   const c = calc();
-  document.getElementById("sumProducts").textContent = fmt(c.products);
+  document.getElementById("sumProducts").textContent = fmtFixed(c.products);
   document.getElementById("sumWG").textContent  = fmt(c.wg);
   const dRow = document.getElementById("discountRow");
   if(c.discount > 0){
