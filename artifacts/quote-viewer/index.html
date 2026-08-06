@@ -1,3 +1,10 @@
+<!-- ============================================================
+     CANONICAL SOURCE — edit this file for all design/content changes.
+     artifacts/quote-viewer/index.html is auto-generated from here
+     by `pnpm run sync-template` (runs automatically on predev/prebuild).
+     DO NOT edit quote-viewer/index.html directly — your changes will
+     be overwritten the next time the dev server starts.
+     ============================================================ -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -127,11 +134,16 @@
 
 <!-- ============================================================
      DATA INJECTION POINT
-     In production the Cloud Run service replaces this <script> block
-     with the real quote payload inline before serving the page.
-     In dev, quote-sample.js is loaded so the page renders standalone.
+     The Cloud Run service replaces this <script> block with the
+     real quote payload before serving the page. Everything below
+     reads exclusively from window.QUOTE — no hardcoded quote data.
+
+     During local dev, quote-sample.js is loaded so the page renders
+     standalone. In production, delete/replace that line and inject
+     window.QUOTE inline (server-side) so the token stays server-side
+     and the browser never calls HubSpot directly.
      ============================================================ -->
-<script src="./quote-sample.js"></script>
+<script src="quote-sample.js"></script>
 
 <!-- HERO -->
 <div class="hero">
@@ -265,7 +277,7 @@
 <script>
 /* =====================================================================
    RENDER LOGIC — reads only from window.QUOTE.
-   No hardcoded quote data, rep, rates, or SKU images live here.
+   No hardcoded quote data, rep, rates, or SKU images live here anymore.
    See quote-sample.js for the exact shape the server must inject.
    ===================================================================== */
 const Q = window.QUOTE;
@@ -295,10 +307,13 @@ function renderHeader(){
 }
 
 /* ---------- Line items ---------- */
+// Each line item's quantity is editable. `orig` is the quoted qty for the
+// availability-check guardrail (same rule David used: moved > max(2, 20%)).
 function thumbHTML(it){
   const inner = it.imageUrl
     ? `<img src="${esc(it.imageUrl)}" alt="${esc(it.name)}">`
     : fallbackSVG;
+  // Hyperlink the tile to the Shopify product via the line item's hs_url field.
   return it.productUrl
     ? `<div class="thumb"><a href="${esc(it.productUrl)}" target="_blank" rel="noopener">${inner}</a></div>`
     : `<div class="thumb">${inner}</div>`;
@@ -335,7 +350,13 @@ function renderItems(){
   }).join("");
 }
 
-/* ---------- Totals ---------- */
+/* ---------- Totals ----------
+   For an unmodified quote we show the quoted absolute values verbatim, so
+   the page matches the source HubSpot quote (and PDF) to the penny.
+   Only when the client edits a quantity do we fall back to recomputing WG
+   and tax from the quoted rates — the discount is held flat. This keeps the
+   live-updating UX working without pretending to be an exact re-quote; the
+   availability-check banner already tells the client + rep to reconfirm.   */
 function calc(){
   const products = Q.items.reduce((s,i)=> s + Math.round(i.price*i.qty*100)/100, 0);
   const discount = Q.rates.discount || 0;
@@ -353,6 +374,7 @@ function calc(){
   const preTax = Math.round((products + wg - discount)*100)/100;
   return {products, wg, discount, preTax, tax, total: Math.round((preTax+tax)*100)/100};
 }
+// any line qty differs from the quoted qty (drives verbatim-vs-recompute)
 function needsAnyEdit(){ return Q.items.some(i => i.qty !== i.orig); }
 
 function renderSummary(){
@@ -405,6 +427,9 @@ function validateSign(){
   document.getElementById("confirmBtn").disabled = !ok;
 }
 
+// STUB: posts the acceptance to the Cloud Run service, which writes back to
+// HubSpot (status + note with the audit trail) and fires the Zapier webhook.
+// Wire the real endpoint + token in when the service is up.
 async function submitAccept(){
   const btn = document.getElementById("confirmBtn");
   btn.disabled = true; btn.textContent = "Submitting…";
@@ -412,11 +437,12 @@ async function submitAccept(){
   const payload = {
     quoteId: Q.meta.quoteId,
     dealId: Q.meta.dealId,
-    token: Q.meta.token,
+    token: Q.meta.token,                       // tokenized link, validated server-side
     signature: {
       name: document.getElementById("signName").value.trim(),
       agreed: document.getElementById("signAgree").checked,
       signedAt: new Date().toISOString()
+      // server also records IP + user-agent from the request for the audit trail
     },
     total: c.total,
     lineItems: Q.items.map(i => ({ sku: i.sku, name: i.name, qty: i.qty, price: i.price, quotedQty: i.orig })),

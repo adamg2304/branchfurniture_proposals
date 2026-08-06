@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "sync-template": "cp ../api-server/src/templates/quote-template.html index.html",
+    "predev": "pnpm run sync-template",
+    "prebuild": "pnpm run sync-template",
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
