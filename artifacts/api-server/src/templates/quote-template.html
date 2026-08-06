@@ -130,6 +130,77 @@
   .modal .cancel{background:none;border:none;color:var(--muted);margin-top:12px;cursor:pointer;font-size:13.5px;width:100%}
   .accepted-msg{display:none;text-align:center;padding:8px 0}
   .accepted-msg .check{width:56px;height:56px;border-radius:50%;background:var(--green);color:#fff;font-size:30px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+
+  /* ── Brand tiles (story / social proof / comparison / remote) ── */
+  .brand-tiles{display:flex;flex-direction:column;gap:20px;padding:0 0 52px}
+
+  .info-tile{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+
+  /* Story tile */
+  .story-inner{padding:40px 36px}
+  .story-inner .tile-kicker{text-transform:uppercase;letter-spacing:.16em;font-size:11.5px;color:var(--muted);font-family:var(--sans);font-weight:600;margin-bottom:14px}
+  .story-inner .tile-headline{font-family:var(--serif);font-size:36px;font-weight:400;line-height:1.12;letter-spacing:-.018em;color:var(--green-deep);margin-bottom:28px}
+  .story-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px 32px}
+  @media(max-width:700px){.story-cols{grid-template-columns:1fr}}
+  .story-cols p{font-size:14.5px;color:#3a3f37;line-height:1.65}
+
+  /* Social proof tile */
+  .social-inner{padding:40px 36px}
+  .social-inner .tile-headline{font-family:var(--serif);font-size:28px;font-weight:400;line-height:1.18;letter-spacing:-.01em;color:var(--green-deep);margin-bottom:24px;text-align:center;max-width:600px;margin-left:auto;margin-right:auto}
+  .trusted-bar{background:var(--green);border-radius:12px;padding:22px 28px;margin-bottom:28px}
+  .trusted-bar .trusted-label{text-align:center;text-transform:uppercase;letter-spacing:.16em;font-size:11px;color:rgba(245,242,236,.65);font-weight:600;margin-bottom:14px}
+  .trusted-logos{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 28px}
+  .trusted-logos span{color:rgba(245,242,236,.9);font-size:14px;font-weight:600;letter-spacing:.04em}
+  .reviews-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:700px){.reviews-grid{grid-template-columns:1fr}}
+  .review-card{border:1px solid var(--line);border-radius:12px;padding:22px 22px 18px}
+  .review-card .qmark{font-family:var(--serif);font-size:48px;line-height:1;color:var(--green);margin-bottom:6px;opacity:.55}
+  .review-card p{font-size:14px;color:#3a3f37;line-height:1.65;margin-bottom:16px}
+  .review-card .reviewer{border-top:1px solid var(--line);padding-top:12px}
+  .review-card .reviewer strong{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--green-deep)}
+  .review-card .reviewer span{font-size:12.5px;color:var(--muted)}
+
+  /* Old Way vs Branch Way tile */
+  .compare-inner{padding:40px 36px}
+  .compare-inner .tile-headline{font-family:var(--serif);font-size:32px;font-weight:400;line-height:1.12;letter-spacing:-.015em;color:var(--green-deep);margin-bottom:8px}
+  .compare-inner .tile-sub{font-size:14.5px;color:var(--muted);margin-bottom:32px}
+  .compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  @media(max-width:700px){.compare-grid{grid-template-columns:1fr}}
+  .compare-col{padding:0}
+  .compare-col.old-way{padding-right:24px;border-right:1px solid var(--line)}
+  @media(max-width:700px){.compare-col.old-way{padding-right:0;border-right:none;border-bottom:1px solid var(--line);padding-bottom:28px;margin-bottom:28px}}
+  .compare-col.branch-way{padding-left:24px}
+  @media(max-width:700px){.compare-col.branch-way{padding-left:0}}
+  .compare-col-title{font-family:var(--serif);font-size:22px;font-weight:400;margin-bottom:22px;color:var(--green-deep)}
+  .compare-col.old-way .compare-col-title{color:var(--muted)}
+  .compare-step{display:flex;gap:14px;align-items:flex-start;margin-bottom:18px;position:relative}
+  .compare-step:not(:last-child)::after{content:"";position:absolute;left:17px;top:37px;bottom:-18px;width:1.5px;background:var(--line)}
+  .compare-col.branch-way .compare-step:not(:last-child)::after{background:rgba(46,68,56,.15)}
+  .step-icon{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--line);background:var(--cream);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;position:relative;z-index:1}
+  .compare-col.branch-way .step-icon{border-color:var(--green);background:var(--green);color:var(--cream)}
+  .step-body{}
+  .step-title{font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--ink);margin-bottom:4px}
+  .compare-col.old-way .step-title{color:var(--muted)}
+  .step-bullets{list-style:none;padding:0;margin:0}
+  .step-bullets li{font-size:13px;color:#5a5f57;line-height:1.5;padding-left:12px;position:relative}
+  .step-bullets li::before{content:"•";position:absolute;left:0;color:var(--muted)}
+  .compare-col.branch-way .step-bullets li::before{color:var(--green)}
+
+  /* Branch Remote tile */
+  .remote-header{background:var(--green);color:var(--cream);padding:32px 36px}
+  .remote-header .tile-kicker{text-transform:uppercase;letter-spacing:.16em;font-size:11px;opacity:.7;font-weight:600;margin-bottom:10px}
+  .remote-header h3{font-family:var(--serif);font-size:30px;font-weight:400;line-height:1.14;letter-spacing:-.015em;margin-bottom:10px}
+  .remote-header p{font-size:14px;opacity:.88;max-width:620px;line-height:1.65}
+  .remote-header a{color:var(--cream);font-weight:600}
+  .remote-body{padding:28px 36px}
+  .remote-body .glance-title{font-family:var(--serif);font-size:22px;font-weight:400;color:var(--green-deep);text-align:center;margin-bottom:24px}
+  .remote-features{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  @media(max-width:780px){.remote-features{grid-template-columns:1fr 1fr}}
+  @media(max-width:480px){.remote-features{grid-template-columns:1fr}}
+  .remote-feat{text-align:center;padding:16px 12px}
+  .remote-feat .feat-icon{font-size:28px;margin-bottom:10px;opacity:.8}
+  .remote-feat strong{display:block;font-size:14px;font-weight:600;color:var(--green-deep);margin-bottom:6px}
+  .remote-feat p{font-size:13px;color:var(--muted);line-height:1.55}
 </style>
 </head>
 <body>
@@ -214,6 +285,189 @@
           <li>Site readiness — premises must be clear, safe, and construction-complete</li>
         </ul>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- BRAND TILES (story / social proof / comparison / remote) -->
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="brand-tiles">
+
+      <!-- 1. Our Story -->
+      <div class="info-tile">
+        <div class="story-inner">
+          <div class="tile-kicker">About Branch</div>
+          <h2 class="tile-headline">Hi, we're Branch,<br>and this is our story.</h2>
+          <div class="story-cols">
+            <div>
+              <p>After furnishing dozens of offices for a commercial real estate startup, our CEO Greg Hayes realized the average office furniture company falls into one of two categories: high quality, but expensive and slow, or affordable and fast but lacking in quality and service.</p>
+              <p style="margin-top:14px">There wasn't a great option for individuals and teams who wanted to furnish an inspiring office without taking forever or breaking the bank.</p>
+            </div>
+            <div>
+              <p>That's why we founded Branch: to make it easy for people and teams to create inspiring offices. We sell direct, so our collection costs half as much as premium furniture of comparable quality, and we design our products with your well-being and work day in mind.</p>
+              <p style="margin-top:14px">We provide end-to-end services: design, delivery, white glove installation, and even the ability to trade in used furniture when you move or grow. We believe it's a better approach to the way we work today.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Social Proof / Reviews -->
+      <div class="info-tile">
+        <div class="social-inner">
+          <h2 class="tile-headline">Redefining service in office furniture<br>across hundreds of enterprise customers.</h2>
+          <div class="trusted-bar">
+            <div class="trusted-label">Trusted by</div>
+            <div class="trusted-logos">
+              <span>Tumblr</span>
+              <span>Tonal</span>
+              <span>Techstars</span>
+              <span>Casper</span>
+              <span>SquareFoot</span>
+              <span>Banza</span>
+            </div>
+          </div>
+          <div class="reviews-grid">
+            <div class="review-card">
+              <div class="qmark">"</div>
+              <p>Our new office is located at One World Trade Center, where the logistics of installation are unique, but Branch was able to handle the delivery of our beautiful new standing desks seamlessly.</p>
+              <div class="reviewer">
+                <strong>Jovanna Feliz</strong>
+                <span>Operations Coordinator at Hive</span>
+              </div>
+            </div>
+            <div class="review-card">
+              <div class="qmark">"</div>
+              <p>Branch's amazing customer support exceeded all expectations and we couldn't be happier with the quality of the furniture. Other retailers were offering comparable products with a list price that was more than double.</p>
+              <div class="reviewer">
+                <strong>Jason Rappaport</strong>
+                <span>CoS at Universal Standard</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. The Old Way vs The Branch Way -->
+      <div class="info-tile">
+        <div class="compare-inner">
+          <h2 class="tile-headline">A better way to furnish your office.</h2>
+          <p class="tile-sub">Here's how the Branch experience stacks up against the traditional furniture-buying process.</p>
+          <div class="compare-grid">
+            <div class="compare-col old-way">
+              <div class="compare-col-title">The Old Way</div>
+              <div class="compare-step">
+                <div class="step-icon">🪑</div>
+                <div class="step-body">
+                  <div class="step-title">Browse manufacturers</div>
+                  <ul class="step-bullets"><li>Hundreds of confusing options</li><li>No price transparency</li></ul>
+                </div>
+              </div>
+              <div class="compare-step">
+                <div class="step-icon">📐</div>
+                <div class="step-body">
+                  <div class="step-title">Design space</div>
+                  <ul class="step-bullets"><li>Hire or outsource interior designer</li><li>Create space plan</li></ul>
+                </div>
+              </div>
+              <div class="compare-step">
+                <div class="step-icon">🏪</div>
+                <div class="step-body">
+                  <div class="step-title">Buy through dealer</div>
+                  <ul class="step-bullets"><li>50% markups</li><li>Hidden fees</li></ul>
+                </div>
+              </div>
+              <div class="compare-step">
+                <div class="step-icon">📦</div>
+                <div class="step-body">
+                  <div class="step-title">Manage delivery</div>
+                  <ul class="step-bullets"><li>6–12 week lead times</li><li>High breakage rates</li></ul>
+                </div>
+              </div>
+              <div class="compare-step">
+                <div class="step-icon">🏗️</div>
+                <div class="step-body">
+                  <div class="step-title">Coordinate installation</div>
+                  <ul class="step-bullets"><li>Manage multiple vendors</li><li>Handle building requirements</li></ul>
+                </div>
+              </div>
+              <div class="compare-step">
+                <div class="step-icon">📅</div>
+                <div class="step-body">
+                  <div class="step-title">As you grow</div>
+                  <ul class="step-bullets"><li>Short warranties</li><li>No flexibility as needs change</li></ul>
+                </div>
+              </div>
+            </div>
+            <div class="compare-col branch-way">
+              <div class="compare-col-title">The Branch Way</div>
+              <div class="compare-step">
+                <div class="step-icon">🌿</div>
+                <div class="step-body">
+                  <div class="step-title">Meet Branch</div>
+                  <ul class="step-bullets"><li>Curated line of essentials</li><li>Buy direct, save ~50%</li></ul>
+                </div>
+              </div>
+              <div class="compare-step">
+                <div class="step-icon">📋</div>
+                <div class="step-body">
+                  <div class="step-title">Customize your space</div>
+                  <ul class="step-bullets"><li>Space planning and design included</li><li>Transparent quoting process</li></ul>
+                </div>
+              </div>
+              <div class="compare-step">
+                <div class="step-icon">🚚</div>
+                <div class="step-body">
+                  <div class="step-title">Get furnished</div>
+                  <ul class="step-bullets"><li>Order to installation in 25–30 business days</li><li>Delivery and assembly included</li><li>Branch Captain coordinates it all</li></ul>
+                </div>
+              </div>
+              <div class="compare-step">
+                <div class="step-icon">✅</div>
+                <div class="step-body">
+                  <div class="step-title">Relax</div>
+                  <ul class="step-bullets"><li>Industry-leading Branch Warranty</li><li>Trade in your furniture as you grow</li></ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Branch Remote -->
+      <div class="info-tile">
+        <div class="remote-header">
+          <div class="tile-kicker">Introducing Branch Remote</div>
+          <h3>A free benefit for B2B clients with<br>remote or hybrid employees.</h3>
+          <p>Once Branch Remote is activated in the Branch Hub, any employee can log into <a href="https://branchfurniture.com">branchfurniture.com</a> with their corporate email and get an auto-applied discount of up to 12% on Branch products for their home office.</p>
+        </div>
+        <div class="remote-body">
+          <div class="glance-title">Branch Remote at a Glance</div>
+          <div class="remote-features">
+            <div class="remote-feat">
+              <div class="feat-icon">👜</div>
+              <strong>Free with any install</strong>
+              <p>Included for every B2B customer, no new contracts required</p>
+            </div>
+            <div class="remote-feat">
+              <div class="feat-icon">⚡</div>
+              <strong>Easy to activate</strong>
+              <p>Branch Remote takes two minutes to activate in your Branch Hub</p>
+            </div>
+            <div class="remote-feat">
+              <div class="feat-icon">✅</div>
+              <strong>Auto-applied</strong>
+              <p>The discount appears at checkout automatically — no chance of leaked codes</p>
+            </div>
+            <div class="remote-feat">
+              <div class="feat-icon">🪑</div>
+              <strong>Optional Stipend</strong>
+              <p>Your HR team can fund and approve home office orders if desired</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </section>
