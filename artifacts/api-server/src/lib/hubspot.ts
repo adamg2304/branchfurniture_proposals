@@ -214,227 +214,12 @@ export class TokenMismatchError extends Error {
   }
 }
 
+/** Tokenized quote fetch — validates URL token against HubSpot before rendering. */
 export async function fetchQuotePayload(
   quoteId: string,
   urlToken: string,
 ): Promise<QuotePayload> {
-  // ── 1. Fetch the quote object ──────────────────────────────────────────────
-  const quoteProps = [
-    "hs_quote_number",
-    "hs_createdate",
-    "hs_expiration_date",
-    "hs_status",
-    "hs_title",
-    "hs_tax",
-    "hs_total_discount",
-    "hs_quote_amount",
-    "quote_link_token",
-  ].join(",");
-
-  const quote = await hs<HsObject<QuoteProperties>>(
-    `/crm/v3/objects/quotes/${quoteId}?properties=${quoteProps}`,
-  );
-
-  // ── 2. Token validation ────────────────────────────────────────────────────
-  const storedToken = quote.properties.quote_link_token;
-  if (!storedToken || storedToken !== urlToken) {
-    throw new TokenMismatchError();
-  }
-
-  // ── 3. Fan out: line items + deals associations (parallel) ─────────────────
-  const [lineItemAssocs, dealAssocs] = await Promise.all([
-    hs<HsAssociationsResult>(
-      `/crm/v4/objects/quotes/${quoteId}/associations/line_items`,
-    ),
-    hs<HsAssociationsResult>(
-      `/crm/v4/objects/quotes/${quoteId}/associations/deals`,
-    ),
-  ]);
-
-  const lineItemIds = lineItemAssocs.results.map((r) => String(r.toObjectId));
-  const dealId = String(dealAssocs.results[0]?.toObjectId ?? "");
-
-  if (!dealId) {
-    throw new Error(`No deal associated with quote ${quoteId}`);
-  }
-
-  // ── 4. Fan out: line item details + deal details (parallel) ───────────────
-  const liProps = [
-    "name",
-    "quantity",
-    "price",
-    "amount",
-    "hs_sku",
-    "description",
-    "hs_url",
-    "hs_images",
-  ];
-
-  const [lineItemsBatch, deal] = await Promise.all([
-    lineItemIds.length > 0
-      ? hs<HsBatchResult<LineItemProperties>>(
-          `/crm/v3/objects/line_items/batch/read`,
-          {
-            method: "POST",
-            body: JSON.stringify({
-              inputs: lineItemIds.map((id) => ({ id })),
-              properties: liProps,
-            }),
-          },
-        )
-      : Promise.resolve({ results: [] as HsObject<LineItemProperties>[] }),
-    hs<HsObject<DealProperties>>(
-      `/crm/v3/objects/deals/${dealId}?properties=hubspot_owner_id,dealname`,
-    ),
-  ]);
-
-  const ownerId = deal.properties.hubspot_owner_id ?? "";
-
-  // ── 5. Fan out: contact + company + owner (parallel) ──────────────────────
-  const [contactAssocs, companyAssocs] = await Promise.all([
-    hs<HsAssociationsResult>(
-      `/crm/v4/objects/deals/${dealId}/associations/contacts`,
-    ),
-    hs<HsAssociationsResult>(
-      `/crm/v4/objects/deals/${dealId}/associations/companies`,
-    ),
-  ]);
-
-  const contactId = String(contactAssocs.results[0]?.toObjectId ?? "");
-  const companyId = String(companyAssocs.results[0]?.toObjectId ?? "");
-
-  const [contactRes, companyRes, ownerRes] = await Promise.all([
-    contactId
-      ? hs<HsBatchResult<ContactProperties>>(
-          `/crm/v3/objects/contacts/batch/read`,
-          {
-            method: "POST",
-            body: JSON.stringify({
-              inputs: [{ id: contactId }],
-              properties: [
-                "firstname",
-                "lastname",
-                "email",
-                "jobtitle",
-                "city",
-                "state",
-              ],
-            }),
-          },
-        )
-      : Promise.resolve({ results: [] as HsObject<ContactProperties>[] }),
-    companyId
-      ? hs<HsBatchResult<CompanyProperties>>(
-          `/crm/v3/objects/companies/batch/read`,
-          {
-            method: "POST",
-            body: JSON.stringify({
-              inputs: [{ id: companyId }],
-              properties: ["name", "city", "state"],
-            }),
-          },
-        )
-      : Promise.resolve({ results: [] as HsObject<CompanyProperties>[] }),
-    ownerId
-      ? hs<OwnerRecord>(`/crm/v3/owners/${ownerId}`).catch((err) => {
-          // crm.objects.owners.read scope may not be granted — degrade gracefully
-          logger.warn(
-            { ownerId, status: (err as { status?: number }).status },
-            "Could not fetch owner — missing scope or owner not found; rep info will be empty. Add crm.objects.owners.read scope to the private app to enable.",
-          );
-          return null as OwnerRecord | null;
-        })
-      : Promise.resolve(null as OwnerRecord | null),
-  ]);
-
-  // ── 6. Build the window.QUOTE payload ─────────────────────────────────────
-  const contact = contactRes.results[0]?.properties ?? {};
-  const company = companyRes.results[0]?.properties ?? {};
-  const owner = ownerRes;
-
-  const contactName = [contact.firstname, contact.lastname]
-    .filter(Boolean)
-    .join(" ");
-  const companyLocation = [company.city, company.state]
-    .filter(Boolean)
-    .join(", ");
-  const repName = [owner?.firstName, owner?.lastName]
-    .filter(Boolean)
-    .join(" ");
-
-  // Separate WG line from product line items
-  const allLineItems = lineItemsBatch.results;
-  const wgItem = allLineItems.find((li) => isWhiteGlove(li.properties.name));
-  const productItems = allLineItems.filter(
-    (li) => !isWhiteGlove(li.properties.name),
-  );
-
-  const wgAmount = parseNum(wgItem?.properties.amount);
-  const productSubtotal = productItems.reduce(
-    (sum, li) =>
-      sum + parseNum(li.properties.price) * parseNum(li.properties.quantity),
-    0,
-  );
-
-  const discount = parseNum(quote.properties.hs_total_discount);
-  const taxAmount = parseNum(quote.properties.hs_tax);
-
-  const preTax = productSubtotal + wgAmount - discount;
-  const wgRate = productSubtotal > 0 ? wgAmount / productSubtotal : 0;
-  const taxRate = preTax > 0 ? taxAmount / preTax : 0;
-
-  const taxLabel =
-    companyLocation ? `Tax (${companyLocation})` : "Tax";
-
-  const items = productItems.map((li) => {
-    const p = li.properties;
-    const price = parseNum(p.price);
-    const qty = Math.round(parseNum(p.quantity)) || 1;
-    return {
-      name: p.name ?? "",
-      spec: p.description ?? "",
-      sku: p.hs_sku ?? "",
-      price,
-      qty,
-      orig: qty,
-      imageUrl: parseHsImages(p.hs_images),
-      productUrl: p.hs_url ?? "",
-    };
-  });
-
-  return {
-    customer: {
-      company: company.name ?? "",
-      location: companyLocation,
-      contactName,
-      contactTitle: contact.jobtitle ?? "",
-      contactEmail: contact.email ?? "",
-    },
-    rep: {
-      name: repName,
-      title: "Account Executive",
-      email: owner?.email ?? "",
-      phone: "",
-    },
-    meta: {
-      ref: quote.properties.hs_quote_number ?? quoteId,
-      quoteId,
-      dealId,
-      token: urlToken,
-      created: toDateString(quote.properties.hs_createdate),
-      expires: toDateString(quote.properties.hs_expiration_date),
-      acceptUrl: `/api/q/${quoteId}/accept`,
-    },
-    rates: {
-      wgAmount: round2(wgAmount),
-      wgRate: round6(wgRate),
-      discount: round2(discount),
-      taxAmount: round2(taxAmount),
-      taxRate: round6(taxRate),
-      taxLabel,
-    },
-    items,
-  };
+  return fetchQuotePayloadInternal(quoteId, null, urlToken);
 }
 
 function round2(n: number): number {
@@ -583,6 +368,178 @@ export async function fetchQuoteDataForAcceptance(
     }));
 
   return { total, lineItems };
+}
+
+/**
+ * Fetch the most recent quote for a deal and return the full render payload.
+ *
+ * Picks the quote with the highest numeric ID (most recently created).
+ * No token validation — intended for internal/rep use via /api/d/:dealId.
+ */
+export async function fetchQuotePayloadForDeal(dealId: string): Promise<QuotePayload> {
+  // Get all quotes associated with this deal
+  const assocResult = await hs<{ results: Array<{ id: string; type: string }> }>(
+    `/crm/v3/objects/deals/${dealId}/associations/quotes`,
+  );
+
+  const quoteIds = assocResult.results.map((r) => r.id);
+  if (quoteIds.length === 0) {
+    throw Object.assign(new Error("NO_QUOTES"), { message: "NO_QUOTES" });
+  }
+
+  // Pick the quote with the highest numeric ID (most recently created)
+  const quoteId = quoteIds
+    .map((id) => ({ id, n: parseInt(id, 10) }))
+    .sort((a, b) => b.n - a.n)[0]!.id;
+
+  // Reuse the core fetch, but skip token validation by passing a sentinel
+  // that we'll match against — we patch fetchQuotePayload to accept null token
+  return fetchQuotePayloadInternal(quoteId, dealId, null);
+}
+
+/**
+ * Core quote payload builder, shared by the tokenized and deal-based routes.
+ * Pass `urlToken = null` to skip token validation (deal-based access).
+ */
+async function fetchQuotePayloadInternal(
+  quoteId: string,
+  knownDealId: string | null,
+  urlToken: string | null,
+): Promise<QuotePayload> {
+  const quoteProps = [
+    "hs_quote_number",
+    "hs_createdate",
+    "hs_expiration_date",
+    "hs_status",
+    "hs_title",
+    "hs_tax",
+    "hs_total_discount",
+    "hs_quote_amount",
+    "quote_link_token",
+  ].join(",");
+
+  const quote = await hs<HsObject<QuoteProperties>>(
+    `/crm/v3/objects/quotes/${quoteId}?properties=${quoteProps}`,
+  );
+
+  // Token validation — only when a token was supplied (tokenized URL flow)
+  if (urlToken !== null) {
+    const storedToken = quote.properties.quote_link_token;
+    if (!storedToken || storedToken !== urlToken) {
+      throw new TokenMismatchError();
+    }
+  }
+
+  // Fan out: line items + deal association (parallel)
+  const [lineItemAssocs, dealAssocsResult] = await Promise.all([
+    hs<HsAssociationsResult>(
+      `/crm/v4/objects/quotes/${quoteId}/associations/line_items`,
+    ),
+    knownDealId
+      ? Promise.resolve({ results: [{ toObjectId: parseInt(knownDealId, 10), associationTypes: [] }] as HsAssociationsResult["results"] })
+      : hs<HsAssociationsResult>(
+          `/crm/v4/objects/quotes/${quoteId}/associations/deals`,
+        ),
+  ]);
+
+  const lineItemIds = lineItemAssocs.results.map((r) => String(r.toObjectId));
+  const dealId = knownDealId ?? String(dealAssocsResult.results[0]?.toObjectId ?? "");
+
+  if (!dealId) {
+    throw new Error(`No deal associated with quote ${quoteId}`);
+  }
+
+  const liProps = ["name", "quantity", "price", "amount", "hs_sku", "description", "hs_url", "hs_images"];
+
+  const [lineItemsBatch, deal] = await Promise.all([
+    lineItemIds.length > 0
+      ? hs<HsBatchResult<LineItemProperties>>(`/crm/v3/objects/line_items/batch/read`, {
+          method: "POST",
+          body: JSON.stringify({ inputs: lineItemIds.map((id) => ({ id })), properties: liProps }),
+        })
+      : Promise.resolve({ results: [] as HsObject<LineItemProperties>[] }),
+    hs<HsObject<DealProperties>>(
+      `/crm/v3/objects/deals/${dealId}?properties=hubspot_owner_id,dealname`,
+    ),
+  ]);
+
+  const ownerId = deal.properties.hubspot_owner_id ?? "";
+
+  const [contactAssocs, companyAssocs] = await Promise.all([
+    hs<HsAssociationsResult>(`/crm/v4/objects/deals/${dealId}/associations/contacts`),
+    hs<HsAssociationsResult>(`/crm/v4/objects/deals/${dealId}/associations/companies`),
+  ]);
+
+  const contactId = String(contactAssocs.results[0]?.toObjectId ?? "");
+  const companyId = String(companyAssocs.results[0]?.toObjectId ?? "");
+
+  const [contactRes, companyRes, ownerRes] = await Promise.all([
+    contactId
+      ? hs<HsBatchResult<ContactProperties>>(`/crm/v3/objects/contacts/batch/read`, {
+          method: "POST",
+          body: JSON.stringify({ inputs: [{ id: contactId }], properties: ["firstname","lastname","email","jobtitle","city","state"] }),
+        })
+      : Promise.resolve({ results: [] as HsObject<ContactProperties>[] }),
+    companyId
+      ? hs<HsBatchResult<CompanyProperties>>(`/crm/v3/objects/companies/batch/read`, {
+          method: "POST",
+          body: JSON.stringify({ inputs: [{ id: companyId }], properties: ["name","city","state"] }),
+        })
+      : Promise.resolve({ results: [] as HsObject<CompanyProperties>[] }),
+    ownerId
+      ? hs<OwnerRecord>(`/crm/v3/owners/${ownerId}`).catch((err) => {
+          logger.warn({ ownerId, status: (err as { status?: number }).status }, "Could not fetch owner");
+          return null as OwnerRecord | null;
+        })
+      : Promise.resolve(null as OwnerRecord | null),
+  ]);
+
+  const contact = contactRes.results[0]?.properties ?? {};
+  const company = companyRes.results[0]?.properties ?? {};
+  const owner = ownerRes;
+
+  const contactName = [contact.firstname, contact.lastname].filter(Boolean).join(" ");
+  const companyLocation = [company.city, company.state].filter(Boolean).join(", ");
+  const repName = [owner?.firstName, owner?.lastName].filter(Boolean).join(" ");
+
+  const allLineItems = lineItemsBatch.results;
+  const wgItem = allLineItems.find((li) => isWhiteGlove(li.properties.name));
+  const productItems = allLineItems.filter((li) => !isWhiteGlove(li.properties.name));
+
+  const wgAmount = parseNum(wgItem?.properties.amount);
+  const productSubtotal = productItems.reduce(
+    (sum, li) => sum + parseNum(li.properties.price) * parseNum(li.properties.quantity), 0,
+  );
+
+  const discount = parseNum(quote.properties.hs_total_discount);
+  const taxAmount = parseNum(quote.properties.hs_tax);
+  const preTax = productSubtotal + wgAmount - discount;
+  const wgRate = productSubtotal > 0 ? wgAmount / productSubtotal : 0;
+  const taxRate = preTax > 0 ? taxAmount / preTax : 0;
+  const taxLabel = companyLocation ? `Tax (${companyLocation})` : "Tax";
+
+  const items = productItems.map((li) => {
+    const p = li.properties;
+    const price = parseNum(p.price);
+    const qty = Math.round(parseNum(p.quantity)) || 1;
+    return { name: p.name ?? "", spec: p.description ?? "", sku: p.hs_sku ?? "", price, qty, orig: qty, imageUrl: parseHsImages(p.hs_images), productUrl: p.hs_url ?? "" };
+  });
+
+  return {
+    customer: { company: company.name ?? "", location: companyLocation, contactName, contactTitle: contact.jobtitle ?? "", contactEmail: contact.email ?? "" },
+    rep: { name: repName, title: "Account Executive", email: owner?.email ?? "", phone: "" },
+    meta: {
+      ref: quote.properties.hs_quote_number ?? quoteId,
+      quoteId,
+      dealId,
+      token: urlToken ?? "",
+      created: toDateString(quote.properties.hs_createdate),
+      expires: toDateString(quote.properties.hs_expiration_date),
+      acceptUrl: `/api/q/${quoteId}/accept`,
+    },
+    rates: { wgAmount: round2(wgAmount), wgRate: round6(wgRate), discount: round2(discount), taxAmount: round2(taxAmount), taxRate: round6(taxRate), taxLabel },
+    items,
+  };
 }
 
 /**

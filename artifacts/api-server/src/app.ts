@@ -123,6 +123,7 @@ app.use(express.urlencoded({ extended: true }));
 // request regardless of middleware order inside the router.
 app.use("/api/q/:slug", quoteFetchLimiter);
 app.use("/api/q/:quoteId/accept", quoteAcceptLimiter);
+app.use("/api/d/:dealId", quoteFetchLimiter); // same budget as quote fetch
 
 app.use("/api", router);
 
