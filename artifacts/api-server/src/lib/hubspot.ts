@@ -76,6 +76,8 @@ interface LineItemProperties {
   description?: string | null;
   hs_url?: string | null;
   hs_images?: string | null;
+  hub_image?: string | null;
+  hs_total_discount?: string | null;
   hs_line_item_currency_code?: string | null;
   recurringbillingfrequency?: string | null;
 }
@@ -200,6 +202,7 @@ export interface QuotePayload {
     spec: string;
     sku: string;
     price: number;
+    disc: number;
     qty: number;
     orig: number;
     imageUrl: string;
@@ -449,7 +452,7 @@ async function fetchQuotePayloadInternal(
     throw new Error(`No deal associated with quote ${quoteId}`);
   }
 
-  const liProps = ["name", "quantity", "price", "amount", "hs_sku", "description", "hs_url", "hs_images"];
+  const liProps = ["name", "quantity", "price", "amount", "hs_sku", "description", "hs_url", "hs_images", "hub_image", "hs_total_discount"];
 
   const [lineItemsBatch, deal] = await Promise.all([
     lineItemIds.length > 0
@@ -522,7 +525,11 @@ async function fetchQuotePayloadInternal(
     const p = li.properties;
     const price = parseNum(p.price);
     const qty = Math.round(parseNum(p.quantity)) || 1;
-    return { name: p.name ?? "", spec: p.description ?? "", sku: p.hs_sku ?? "", price, qty, orig: qty, imageUrl: parseHsImages(p.hs_images), productUrl: p.hs_url ?? "" };
+    const disc = qty > 0 ? Math.round((parseNum(p.hs_total_discount) / qty) * 100) / 100 : 0;
+    // hub_image (a direct URL on the line item) is the intended proposal image;
+    // fall back to the Shopify hs_images array if hub_image isn't set.
+    const imageUrl = p.hub_image && p.hub_image.trim() ? p.hub_image.trim() : parseHsImages(p.hs_images);
+    return { name: p.name ?? "", spec: p.description ?? "", sku: p.hs_sku ?? "", price, disc, qty, orig: qty, imageUrl, productUrl: p.hs_url ?? "" };
   });
 
   return {
