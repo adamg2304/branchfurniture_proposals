@@ -694,16 +694,19 @@ function calc(){
   const edited = needsAnyEdit();
   const wgLine = wgItem();
 
-  let wg, tax;
-  if(edited){
-    wg  = Math.round(products * Q.rates.wgRate * 100)/100;
-    const preTax = Math.round((products + wg - discount)*100)/100;
-    tax = Math.round(preTax * Q.rates.taxRate * 100)/100;
-  } else {
-    wg  = wgLine ? Math.round(wgLine.price*wgLine.qty*100)/100 : (Q.rates.wgAmount || 0);
-    tax = Q.rates.taxAmount || 0;
-  }
+  // White Glove is a FLAT delivery charge — it is fixed at the quoted amount
+  // (the WG line item if present, else the quoted wgAmount) and never scales
+  // when the client adjusts product quantities.
+  const wg = wgLine
+    ? Math.round(wgLine.price * wgLine.qty * 100) / 100
+    : (Q.rates.wgAmount || 0);
+
+  // Tax may legitimately change with order size; recompute it from the quoted
+  // rate when quantities are edited, otherwise show the quoted amount verbatim.
   const preTax = Math.round((products + wg - discount)*100)/100;
+  const tax = edited
+    ? Math.round(preTax * Q.rates.taxRate * 100)/100
+    : (Q.rates.taxAmount || 0);
   return {products, wg, discount, preTax, tax, total: Math.round((preTax+tax)*100)/100};
 }
 // any line qty differs from the quoted qty (drives verbatim-vs-recompute)
