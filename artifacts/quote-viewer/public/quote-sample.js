@@ -70,7 +70,7 @@ window.QUOTE = {
     { name: "Meeting Table",               spec: "Walnut / Charcoal",                      sku: "12-02-48-02", price: 1149.00, disc: 91.92,  qty: 1,  orig: 1,  imageUrl: "", productUrl: "" },
     { name: "Office Desk",                  spec: 'Walnut Top / Charcoal Leg · 48" × 24"',  sku: "10-00-53-32", price: 499.00,  disc: 39.92,  qty: 4,  orig: 4,  imageUrl: "", productUrl: "" },
     { name: "Office Desk",                  spec: 'Walnut Top / Charcoal Leg · 60" × 30"',  sku: "10-00-67-32", price: 679.00,  disc: 54.32,  qty: 1,  orig: 1,  imageUrl: "", productUrl: "" },
-    { name: "Ergonomic Chair",             spec: "Pebble / White / Standard",              sku: "11-01-00-53", price: 389.00,  disc: 31.12,  qty: 9,  orig: 9,  imageUrl: "", productUrl: "" },
+    { name: "Ergonomic Chair",             spec: "Pebble / White / Standard",              sku: "11-01-00-53", price: 389.00,  disc: 31.12,  qty: 9,  orig: 9,  imageUrl: "https://cdn.shopify.com/s/files/1/0124/5662/4187/files/pebble-front-hi_97a0b88c-db5e-4703-9dde-8c6632124ff3.jpg", productUrl: "" },
     { name: "Daily Chair",                  spec: "Black / Black / Standard",               sku: "11-03-00-50", price: 259.00,  disc: 20.72,  qty: 16, orig: 16, imageUrl: "", productUrl: "" },
     { name: "Small Filing Cabinet",        spec: "Charcoal / Standard",                    sku: "14-06-00-69", price: 239.00,  disc: 19.12,  qty: 5,  orig: 5,  imageUrl: "", productUrl: "" },
     { name: "In-Desk Power",                spec: "Standard",                               sku: "13-11-00-00", price: 160.00,  disc: 12.80,  qty: 2,  orig: 2,  imageUrl: "", productUrl: "" }
