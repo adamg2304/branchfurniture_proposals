@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 460" role="img" aria-label="Sample floor plan placeholder">
+  <rect width="1000" height="460" fill="#f5f2ec"/>
+  <g fill="none" stroke="#2e4438" stroke-width="4">
+    <rect x="40" y="40" width="920" height="380"/>
+    <line x1="380" y1="40" x2="380" y2="300"/>
+    <line x1="40" y1="300" x2="640" y2="300"/>
+    <line x1="640" y1="40" x2="640" y2="420"/>
+    <rect x="700" y="80" width="220" height="140"/>
+    <rect x="700" y="260" width="220" height="120"/>
+  </g>
+  <g fill="#2e4438" stroke="#2e4438" stroke-width="1.5">
+    <rect x="120" y="110" width="180" height="90" fill="none"/>
+    <rect x="430" y="110" width="150" height="70" fill="none"/>
+    <circle cx="180" cy="360" r="26" fill="none"/>
+    <circle cx="260" cy="360" r="26" fill="none"/>
+    <circle cx="340" cy="360" r="26" fill="none"/>
+  </g>
+  <g fill="#6b7066" font-family="Inter,Arial,sans-serif" font-size="22">
+    <text x="150" y="240">Conference</text>
+    <text x="450" y="205">Meeting</text>
+    <text x="740" y="160">Focus</text>
+    <text x="720" y="330">Lounge</text>
+  </g>
+  <text x="500" y="445" text-anchor="middle" fill="#9a9a92" font-family="Inter,Arial,sans-serif" font-size="16">Sample floor plan (placeholder) — live quotes show the deal's actual floorplan file</text>
+</svg>

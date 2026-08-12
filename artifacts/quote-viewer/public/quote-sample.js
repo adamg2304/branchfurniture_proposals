@@ -52,8 +52,10 @@ window.QUOTE = {
     token: "REPLACE_WITH_UNGUESSABLE_TOKEN",
     created: "2026-07-14",
     expires: "2026-08-13",
-    acceptUrl: "/api/q/41421676299/accept"  // Chai Travel dev quote — proxied to api-server in dev
+    acceptUrl: "/api/q/41421676299/accept",  // Chai Travel dev quote — proxied to api-server in dev
+    floorplanUrl: "/floorplan-sample.svg"    // dev placeholder; live quotes resolve the deal's floorplan file
   },
+  hasWhiteGlove: true,                        // WG section shows only when a White Glove line item exists
   // Values pulled from the HubSpot quote so the page mirrors the PDF exactly.
   // Chai Travel: products 15,233.00 · WG 2,484.95 · discount 1,218.64 · tax 1,464.31 · total 17,963.62
   rates: {

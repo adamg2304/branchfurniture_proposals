@@ -85,6 +85,7 @@ interface LineItemProperties {
 interface DealProperties {
   hubspot_owner_id?: string | null;
   dealname?: string | null;
+  floorplan?: string | null;
 }
 
 interface ContactProperties {
@@ -164,6 +165,23 @@ function isWhiteGlove(name: string | null | undefined): boolean {
   );
 }
 
+/**
+ * Resolve a HubSpot Files API file id to a public URL. Requires the private
+ * app to have the `files` scope. Returns "" if the id is empty or unresolvable,
+ * so a missing or inaccessible file never breaks quote rendering.
+ */
+async function resolveFileUrl(fileId: string): Promise<string> {
+  const id = (fileId ?? "").trim();
+  if (!id) return "";
+  try {
+    const file = await hs<{ url?: string | null }>(`/files/v3/files/${id}`);
+    return file.url ?? "";
+  } catch (err) {
+    logger.warn({ fileId: id, status: (err as { status?: number }).status }, "Could not resolve floorplan file URL");
+    return "";
+  }
+}
+
 // ─── Main fetch function ──────────────────────────────────────────────────────
 
 export interface QuotePayload {
@@ -188,7 +206,9 @@ export interface QuotePayload {
     created: string;
     expires: string;
     acceptUrl: string;
+    floorplanUrl: string;
   };
+  hasWhiteGlove: boolean;
   rates: {
     wgAmount: number;
     wgRate: number;
@@ -462,7 +482,7 @@ async function fetchQuotePayloadInternal(
         })
       : Promise.resolve({ results: [] as HsObject<LineItemProperties>[] }),
     hs<HsObject<DealProperties>>(
-      `/crm/v3/objects/deals/${dealId}?properties=hubspot_owner_id,dealname`,
+      `/crm/v3/objects/deals/${dealId}?properties=hubspot_owner_id,dealname,floorplan`,
     ),
   ]);
 
@@ -543,7 +563,9 @@ async function fetchQuotePayloadInternal(
       created: toDateString(quote.properties.hs_createdate),
       expires: toDateString(quote.properties.hs_expiration_date),
       acceptUrl: `/api/q/${quoteId}/accept`,
+      floorplanUrl: await resolveFileUrl(deal.properties.floorplan ?? ""),
     },
+    hasWhiteGlove: Boolean(wgItem),
     rates: { wgAmount: round2(wgAmount), wgRate: round6(wgRate), discount: round2(discount), taxAmount: round2(taxAmount), taxRate: round6(taxRate), taxLabel },
     items,
   };
