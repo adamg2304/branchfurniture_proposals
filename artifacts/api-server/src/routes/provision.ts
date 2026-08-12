@@ -17,7 +17,7 @@
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
-import { provisionDealQuoteLink } from "../lib/hubspot.js";
+import { provisionDealQuoteLink, sweepQuoteSentDeals } from "../lib/hubspot.js";
 import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
@@ -107,6 +107,40 @@ router.post("/hubspot/webhook", async (req: Request, res: Response) => {
     } catch (err) {
       logger.error({ err, dealId }, "Webhook failed to provision deal quote link");
     }
+  }
+});
+
+/**
+ * POST /api/provision/sweep
+ *
+ * Provision links for every deal currently in the Quote Sent stage that
+ * doesn't already have one. Secret-gated (PROVISION_SECRET). Point a cron /
+ * Replit Scheduled Deployment at this endpoint to keep links populated without
+ * relying on a HubSpot app webhook. Idempotent — safe to run every few minutes.
+ */
+router.post("/provision/sweep", async (req: Request, res: Response) => {
+  const secret = process.env["PROVISION_SECRET"];
+  if (!secret) {
+    logger.error("PROVISION_SECRET is not set");
+    res.status(503).json({ error: "Provisioning is not configured." });
+    return;
+  }
+  if (suppliedSecret(req) !== secret) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  if (!process.env["HUBSPOT_PRIVATE_APP_TOKEN"]) {
+    res.status(503).json({ error: "Quote service is not configured." });
+    return;
+  }
+
+  try {
+    const result = await sweepQuoteSentDeals();
+    logger.info({ scanned: result.scanned, provisioned: result.provisioned }, "Quote Sent sweep complete");
+    res.status(200).json({ ok: true, ...result });
+  } catch (err) {
+    logger.error({ err }, "Quote Sent sweep failed");
+    res.status(500).json({ error: "Sweep failed." });
   }
 });
 

@@ -898,6 +898,53 @@ export async function provisionDealQuoteLink(
 }
 
 /**
+ * Sweep every deal currently in the Quote Sent stage and provision a tokenized
+ * link on any that don't already have one. Idempotent (provisionDealQuoteLink
+ * skips deals that already carry their own tokenized link), so this is safe to
+ * run on a schedule. This is the reliable, HubSpot-app-free way to keep links
+ * populated: point a cron / Replit Scheduled Deployment at POST /api/provision/sweep.
+ */
+export async function sweepQuoteSentDeals(): Promise<{
+  scanned: number;
+  provisioned: number;
+  truncated: boolean;
+  deals: Array<{ dealId: string; url: string; created: boolean }>;
+}> {
+  const stage = process.env["QUOTE_SENT_STAGE_ID"] || "1523817";
+  const LIMIT = 100;
+  const search = await hs<{ total?: number; results: Array<{ id: string }> }>(
+    `/crm/v3/objects/deals/search`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        filterGroups: [{ filters: [{ propertyName: "dealstage", operator: "EQ", value: stage }] }],
+        properties: ["dealstage"],
+        limit: LIMIT,
+      }),
+    },
+  );
+
+  const results = search.results ?? [];
+  const truncated = (search.total ?? results.length) > LIMIT;
+  if (truncated) {
+    logger.warn({ total: search.total }, "Quote Sent sweep hit the 100-deal page limit; some deals not swept this run");
+  }
+
+  const deals: Array<{ dealId: string; url: string; created: boolean }> = [];
+  let provisioned = 0;
+  for (const d of results) {
+    try {
+      const r = await provisionDealQuoteLink(d.id);
+      if (r.created) provisioned++;
+      deals.push({ dealId: d.id, url: r.url, created: r.created });
+    } catch (err) {
+      logger.error({ err, dealId: d.id }, "Sweep failed to provision deal");
+    }
+  }
+  return { scanned: results.length, provisioned, truncated, deals };
+}
+
+/**
  * Advance the deal to the accepted stage, if one is configured via the
  * ACCEPTED_DEAL_STAGE_ID environment variable. When unset, acceptance still
  * records the audit note but the stage is left unchanged (logged loudly so the
