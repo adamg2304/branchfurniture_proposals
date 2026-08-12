@@ -10,6 +10,7 @@
  * Quotes without that property are always rejected (403).
  */
 
+import { randomBytes } from "node:crypto";
 import { logger } from "./logger.js";
 
 const BASE = "https://api.hubapi.com";
@@ -154,6 +155,53 @@ function parseHsImages(raw: string | null | undefined): string {
     // Not JSON — treat as a plain URL if it looks like one
     return raw.startsWith("http") ? raw : "";
   }
+}
+
+interface ProductImageProperties {
+  hs_sku?: string | null;
+  hub_image?: string | null;
+  hs_images?: string | null;
+}
+
+/**
+ * Resolve product images by SKU from the HubSpot Product library.
+ *
+ * `hub_image` (the curated proposal image) is typically maintained on the
+ * Product, not copied onto every line item. Line items on a deal often have no
+ * `hs_product_id`, so we match on `hs_sku`. Returns a map SKU → { hubImage,
+ * hsImages }. Never throws — image resolution must never break rendering.
+ */
+async function fetchProductImagesBySku(
+  skus: Array<string | null | undefined>,
+): Promise<Map<string, { hubImage: string; hsImages: string }>> {
+  const map = new Map<string, { hubImage: string; hsImages: string }>();
+  const unique = [...new Set(skus.map((s) => (s ?? "").trim()).filter(Boolean))];
+  if (unique.length === 0) return map;
+  try {
+    const res = await hs<HsBatchResult<ProductImageProperties>>(
+      `/crm/v3/objects/products/search`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          filterGroups: [{ filters: [{ propertyName: "hs_sku", operator: "IN", values: unique }] }],
+          properties: ["hs_sku", "hub_image", "hs_images"],
+          limit: 100,
+        }),
+      },
+    );
+    for (const p of res.results) {
+      const sku = (p.properties.hs_sku ?? "").trim();
+      if (sku && !map.has(sku)) {
+        map.set(sku, {
+          hubImage: (p.properties.hub_image ?? "").trim(),
+          hsImages: p.properties.hs_images ?? "",
+        });
+      }
+    }
+  } catch (err) {
+    logger.warn({ status: (err as { status?: number }).status }, "Could not resolve product images by SKU");
+  }
+  return map;
 }
 
 function isWhiteGlove(name: string | null | undefined): boolean {
@@ -497,6 +545,11 @@ export async function fetchDealQuote(
   const wgItem = allLineItems.find((li) => isWhiteGlove(li.properties.name));
   const productItems = allLineItems.filter((li) => !isWhiteGlove(li.properties.name));
 
+  // Resolve hub_image from the Product library (by SKU) for any line item that
+  // doesn't carry its own hub_image — the curated proposal image is maintained
+  // on the Product, not copied onto each line item.
+  const productImages = await fetchProductImagesBySku(productItems.map((li) => li.properties.hs_sku));
+
   const wgAmount = parseNum(wgItem?.properties.amount) || parseNum(wgItem?.properties.price) * (Math.round(parseNum(wgItem?.properties.quantity)) || 1);
   const productSubtotal = productItems.reduce(
     (sum, li) => sum + parseNum(li.properties.price) * parseNum(li.properties.quantity), 0,
@@ -516,7 +569,12 @@ export async function fetchDealQuote(
     const price = parseNum(p.price);
     const qty = Math.round(parseNum(p.quantity)) || 1;
     const disc = qty > 0 ? Math.round((parseNum(p.hs_total_discount) / qty) * 100) / 100 : 0;
-    const imageUrl = p.hub_image && p.hub_image.trim() ? p.hub_image.trim() : parseHsImages(p.hs_images);
+    // Image priority: line-item hub_image → Product hub_image (by SKU) →
+    // line-item hs_images → Product hs_images. hub_image always wins over the
+    // hs_images fallback so the curated proposal image is used when present.
+    const prodImg = productImages.get((p.hs_sku ?? "").trim());
+    const hubImage = (p.hub_image ?? "").trim() || (prodImg?.hubImage ?? "");
+    const imageUrl = hubImage || parseHsImages(p.hs_images) || parseHsImages(prodImg?.hsImages);
     return { name: p.name ?? "", spec: p.description ?? "", sku: p.hs_sku ?? "", price, disc, qty, orig: qty, imageUrl, productUrl: p.hs_url ?? "" };
   });
 
@@ -800,6 +858,43 @@ export async function fetchDealDataForAcceptance(
   }));
 
   return { total, lineItems };
+}
+
+/**
+ * Provision (or reuse) the tokenized public quote link on a deal.
+ *
+ * Generates an unguessable token, writes `hub_quote_link =
+ * {PUBLIC_BASE_URL}/api/q/{dealId}-{token}` onto the deal, and returns it.
+ * Idempotent: if the deal already has a link pointing at its own tokenized
+ * route it is kept (so re-enrolling a deal in the workflow does not rotate a
+ * link that may already be shared) — pass `force` to regenerate.
+ *
+ * This is what the "deal entered Quote Sent" HubSpot workflow calls.
+ */
+export async function provisionDealQuoteLink(
+  dealId: string,
+  opts: { force?: boolean } = {},
+): Promise<{ url: string; created: boolean }> {
+  const base = (process.env["PUBLIC_BASE_URL"] || "https://cloud-quote-link.replit.app").replace(/\/$/, "");
+
+  const deal = await hs<HsObject<Pick<DealProperties, "hub_quote_link">>>(
+    `/crm/v3/objects/deals/${dealId}?properties=hub_quote_link`,
+  );
+  const existingLink = (deal.properties.hub_quote_link ?? "").trim();
+  const existingToken = extractStoredToken(existingLink);
+
+  // Reuse an already-provisioned link (points at THIS deal's tokenized route).
+  if (!opts.force && existingToken && existingLink.includes(`/api/q/${dealId}-`)) {
+    return { url: existingLink, created: false };
+  }
+
+  const tok = randomBytes(20).toString("hex");
+  const url = `${base}/api/q/${dealId}-${tok}`;
+  await hs<unknown>(`/crm/v3/objects/deals/${dealId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ properties: { hub_quote_link: url } }),
+  });
+  return { url, created: true };
 }
 
 /**
