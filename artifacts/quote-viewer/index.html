@@ -10,7 +10,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Branch — Office Furniture Quote</title>
+<title>Branch · Office Furniture Quote</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -215,6 +215,15 @@
   .remote-feat .feat-icon{font-size:28px;margin-bottom:10px;opacity:.8}
   .remote-feat strong{display:block;font-size:14px;font-weight:600;color:var(--green-deep);margin-bottom:6px}
   .remote-feat p{font-size:13px;color:var(--muted);line-height:1.55}
+
+  /* Line icons (replacing emoji) + Branch Remote CTA */
+  .step-icon svg{width:18px;height:18px}
+  .compare-col.old-way .step-icon{color:var(--muted)}
+  .remote-feat .feat-icon{color:var(--green);opacity:.9}
+  .remote-feat .feat-icon svg{width:26px;height:26px}
+  .remote-cta-wrap{text-align:center;margin-top:28px}
+  .remote-cta{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;font-weight:600;font-size:14.5px;padding:13px 28px;border-radius:9px;transition:opacity .15s}
+  .remote-cta:hover{opacity:.88}
 </style>
 </head>
 <body>
@@ -253,7 +262,7 @@
     <div class="summary-grid">
       <div>
         <h2 class="section-title">Your quote</h2>
-        <p class="section-sub">Everything below is itemized straight from your quote. Adjust quantities to match your headcount — totals update instantly.</p>
+        <p class="section-sub">Everything below is itemized straight from your quote. Adjust quantities to match your headcount and totals update instantly.</p>
         <div class="items" id="itemRows"></div>
       </div>
       <div class="summary">
@@ -263,10 +272,10 @@
         <div class="srow discount" id="discountRow" style="display:none"><span class="lbl">Discount</span><span id="sumDiscount"></span></div>
         <div class="srow"><span class="lbl" id="taxLabel">Tax</span><span id="sumTax"></span></div>
         <div class="srow total"><span>Total</span><span id="sumTotal"></span></div>
-        <div class="invbanner" id="invBanner"><strong>Availability check needed.</strong> You've adjusted quantities from the original quote. We'll confirm stock and delivery timeline before final pricing — usually within one business day.</div>
+        <div class="invbanner" id="invBanner"><strong>Availability check needed.</strong> You've adjusted quantities from the original quote. We'll confirm stock and delivery timeline before final pricing, usually within one business day.</div>
         <button class="cta primary" id="acceptBtn" onclick="openModal()">Accept this quote</button>
         <a class="cta secondary" id="changesLink" href="#">Request changes</a>
-        <p class="fine">Accepting this quote begins the e-signature process — nothing is final until you sign. <a href="#whiteglove" style="color:var(--cream)">See exactly what White Glove includes ↓</a></p>
+        <p class="fine">Accepting this quote begins the e-signature process. Nothing is final until you sign. <a href="#whiteglove" style="color:var(--cream)">See exactly what White Glove includes ↓</a></p>
       </div>
     </div>
   </div>
@@ -276,14 +285,14 @@
 <section id="whiteglove" style="padding-top:0">
   <div class="wrap">
     <h2 class="section-title">White Glove Delivery, in plain terms</h2>
-    <p class="section-sub">Your quote includes our full-service delivery and installation. Here's exactly where the line is drawn — no surprises on install day.</p>
+    <p class="section-sub">Your quote includes our full-service delivery and installation. Here's exactly where the line is drawn, with no surprises on install day.</p>
     <div class="wg-grid">
       <div class="wg-card included">
         <h3>Included in your quote</h3>
         <ul>
           <li>Scheduled delivery window coordinated with your building</li>
           <li>Certificate of Insurance (COI) handled by Branch</li>
-          <li>Professional install team — full assembly of every item</li>
+          <li>Professional install team: full assembly of every item</li>
           <li>In-room placement according to your space plan</li>
           <li>Complete packaging removal and clean-up</li>
           <li>Single point of contact: your Branch Captain coordinates it all</li>
@@ -292,11 +301,11 @@
       <div class="wg-card excluded">
         <h3>Not included (and when extra fees apply)</h3>
         <ul>
-          <li>Electrical or plumbing connections — never performed by Branch or its partners</li>
+          <li>Electrical or plumbing connections, never performed by Branch or its partners</li>
           <li>Union labor, where required by your building (surcharge applies)</li>
           <li>After-hours or weekend delivery (surcharge applies)</li>
           <li>Carrying furniture up or through stairwells (surcharge applies)</li>
-          <li>Site readiness — premises must be clear, safe, and construction-complete</li>
+          <li>Site readiness: premises must be clear, safe, and construction-complete</li>
         </ul>
       </div>
     </div>
@@ -371,42 +380,42 @@
             <div class="compare-col old-way">
               <div class="compare-col-title">The Old Way</div>
               <div class="compare-step">
-                <div class="step-icon">🪑</div>
+                <div class="step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.2"/></svg></div>
                 <div class="step-body">
                   <div class="step-title">Browse manufacturers</div>
                   <ul class="step-bullets"><li>Hundreds of confusing options</li><li>No price transparency</li></ul>
                 </div>
               </div>
               <div class="compare-step">
-                <div class="step-icon">📐</div>
+                <div class="step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M13.5 7.5l3 3"/></svg></div>
                 <div class="step-body">
                   <div class="step-title">Design space</div>
                   <ul class="step-bullets"><li>Hire or outsource interior designer</li><li>Create space plan</li></ul>
                 </div>
               </div>
               <div class="compare-step">
-                <div class="step-icon">🏪</div>
+                <div class="step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H4v7l9 9a2 2 0 0 0 2.8 0l4.2-4.2a2 2 0 0 0 0-2.8z"/><circle cx="7.5" cy="7.5" r="1.3"/></svg></div>
                 <div class="step-body">
                   <div class="step-title">Buy through dealer</div>
                   <ul class="step-bullets"><li>50% markups</li><li>Hidden fees</li></ul>
                 </div>
               </div>
               <div class="compare-step">
-                <div class="step-icon">📦</div>
+                <div class="step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8.5 12 3.5 3 8.5v7L12 20.5l9-5z"/><path d="M3 8.5l9 5 9-5M12 13.5v7"/></svg></div>
                 <div class="step-body">
                   <div class="step-title">Manage delivery</div>
                   <ul class="step-bullets"><li>6–12 week lead times</li><li>High breakage rates</li></ul>
                 </div>
               </div>
               <div class="compare-step">
-                <div class="step-icon">🏗️</div>
+                <div class="step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-.9 4.3l-8 8a2.1 2.1 0 0 1-3-3l8-8a4 4 0 0 1 4.3-.9l-2.4 2.4.3 2.3 2.3.3z"/></svg></div>
                 <div class="step-body">
                   <div class="step-title">Coordinate installation</div>
                   <ul class="step-bullets"><li>Manage multiple vendors</li><li>Handle building requirements</li></ul>
                 </div>
               </div>
               <div class="compare-step">
-                <div class="step-icon">📅</div>
+                <div class="step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></div>
                 <div class="step-body">
                   <div class="step-title">As you grow</div>
                   <ul class="step-bullets"><li>Short warranties</li><li>No flexibility as needs change</li></ul>
@@ -416,28 +425,28 @@
             <div class="compare-col branch-way">
               <div class="compare-col-title">The Branch Way</div>
               <div class="compare-step">
-                <div class="step-icon">🌿</div>
+                <div class="step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19c0-8 6-13 15-14-1 9-6 15-15 14z"/><path d="M5 19c3-5 7-8 11-9.5"/></svg></div>
                 <div class="step-body">
                   <div class="step-title">Meet Branch</div>
                   <ul class="step-bullets"><li>Curated line of essentials</li><li>Buy direct, save ~50%</li></ul>
                 </div>
               </div>
               <div class="compare-step">
-                <div class="step-icon">📋</div>
+                <div class="step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2"/><path d="M9.5 4.5V4a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 4v.5"/><path d="M9 11h6M9 14.5h4"/></svg></div>
                 <div class="step-body">
                   <div class="step-title">Customize your space</div>
                   <ul class="step-bullets"><li>Space planning and design included</li><li>Transparent quoting process</li></ul>
                 </div>
               </div>
               <div class="compare-step">
-                <div class="step-icon">🚚</div>
+                <div class="step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5h10v9H3z"/><path d="M13 9.5h4l3.5 3.5v2.5H13z"/><circle cx="7" cy="18" r="1.7"/><circle cx="17.5" cy="18" r="1.7"/></svg></div>
                 <div class="step-body">
                   <div class="step-title">Get furnished</div>
                   <ul class="step-bullets"><li>Order to installation in 25–30 business days</li><li>Delivery and assembly included</li><li>Branch Captain coordinates it all</li></ul>
                 </div>
               </div>
               <div class="compare-step">
-                <div class="step-icon">✅</div>
+                <div class="step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6.5 9.5 17 4 11.5"/></svg></div>
                 <div class="step-body">
                   <div class="step-title">Relax</div>
                   <ul class="step-bullets"><li>Industry-leading Branch Warranty</li><li>Trade in your furniture as you grow</li></ul>
@@ -459,25 +468,28 @@
           <div class="glance-title">Branch Remote at a Glance</div>
           <div class="remote-features">
             <div class="remote-feat">
-              <div class="feat-icon">👜</div>
+              <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="8.5" width="17" height="12" rx="1.5"/><path d="M3.5 12.5h17M12 8.5v12"/><path d="M12 8.5C11 5 8.5 5 8 6.5s1.5 2 4 2zM12 8.5C13 5 15.5 5 16 6.5s-1.5 2-4 2z"/></svg></div>
               <strong>Free with any install</strong>
               <p>Included for every B2B customer, no new contracts required</p>
             </div>
             <div class="remote-feat">
-              <div class="feat-icon">⚡</div>
+              <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/></svg></div>
               <strong>Easy to activate</strong>
               <p>Branch Remote takes two minutes to activate in your Branch Hub</p>
             </div>
             <div class="remote-feat">
-              <div class="feat-icon">✅</div>
+              <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></div>
               <strong>Auto-applied</strong>
-              <p>The discount appears at checkout automatically — no chance of leaked codes</p>
+              <p>The discount appears at checkout automatically, with no chance of leaked codes</p>
             </div>
             <div class="remote-feat">
-              <div class="feat-icon">🪑</div>
+              <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="6.5" width="17" height="12" rx="2"/><path d="M3.5 10.5h17"/><circle cx="16.5" cy="14" r="1.2"/></svg></div>
               <strong>Optional Stipend</strong>
               <p>Your HR team can fund and approve home office orders if desired</p>
             </div>
+          </div>
+          <div class="remote-cta-wrap">
+            <a class="remote-cta" href="mailto:hello@branchfurniture.com?subject=Sign%20me%20up%20for%20Branch%20Remote">Try Branch Remote Today</a>
           </div>
         </div>
       </div>
@@ -544,7 +556,7 @@
     </div>
     <div class="accepted-msg" id="acceptedMsg">
       <div class="check">✓</div>
-      <h3>Accepted — thank you</h3>
+      <h3>Accepted, thank you</h3>
       <p id="acceptedCopy"></p>
       <button class="cta primary" style="margin-top:18px" onclick="closeModal()">Done</button>
     </div>
@@ -581,7 +593,7 @@ function renderHeader(){
   const days = Math.ceil((new Date(m.expires) - new Date())/(1000*60*60*24));
   const el = document.getElementById("daysLeft");
   if(days > 0){ el.textContent = days + (days===1?" day":" days") + " left at this pricing"; }
-  else { el.textContent = "Expired — contact your rep to refresh"; el.style.background = "#8a3b2e"; }
+  else { el.textContent = "Expired. Contact your rep to refresh"; el.style.background = "#8a3b2e"; }
 }
 
 /* ---------- Line items ---------- */
@@ -614,7 +626,7 @@ function renderItems(){
         <div class="name">${nameHTML}</div>
         <div class="spec">${esc(it.spec)}</div>
         ${it.sku ? `<div class="sku">SKU ${esc(it.sku)}</div>` : ""}
-        ${moved?`<div class="qtynote">Quantity changed from ${it.orig} — availability check applies</div>`:""}
+        ${moved?`<div class="qtynote">Quantity changed from ${it.orig}, availability check applies</div>`:""}
       </div>
       <div class="qty">
         <button onclick="bump(${idx},-1)" aria-label="decrease">−</button>
@@ -672,10 +684,10 @@ function renderSummary(){
 
   const inv = needsInvCheck();
   document.getElementById("invBanner").classList.toggle("show", inv);
-  document.getElementById("acceptBtn").textContent = inv ? "Accept — pending availability check" : "Accept this quote";
+  document.getElementById("acceptBtn").textContent = inv ? "Accept (pending availability check)" : "Accept this quote";
   document.getElementById("barAccept").textContent = inv ? "Accept (availability check)" : "Accept quote";
 
-  const subj = encodeURIComponent(`Quote ${Q.meta.ref} — change request`);
+  const subj = encodeURIComponent(`Quote ${Q.meta.ref} change request`);
   const body = encodeURIComponent(`Hi ${Q.rep.name || "there"},\n\nI'd like to discuss some changes to our quote (currently ${fmt(c.total)}).\n`);
   document.getElementById("changesLink").href = `mailto:${Q.rep.email}?subject=${subj}&body=${body}`;
 }
@@ -687,13 +699,13 @@ function setQty(idx,v){ const i=Q.items[idx]; i.qty=Math.max(0,Math.min(99,parse
 /* ---------- Accept + clickwrap e-sign ---------- */
 function openModal(){
   const c = calc();
-  document.getElementById("modalTitle").textContent = needsInvCheck() ? "Accept — with availability check" : "Accept this quote?";
+  document.getElementById("modalTitle").textContent = needsInvCheck() ? "Accept with availability check" : "Accept this quote?";
   document.getElementById("modalTotal").textContent = `Total: ${fmt(c.total)} (incl. White Glove Delivery & tax)`;
   const invNote = document.getElementById("modalInvNote");
   if(needsInvCheck()){
     const changed = Q.items.filter(movedTooFar).map(i=>`${i.name} (${i.orig} → ${i.qty})`).join(", ");
     invNote.style.display = "block";
-    invNote.innerHTML = `<strong>Quantities changed:</strong> ${esc(changed)}. Your rep will confirm stock and delivery timeline before the order is finalized — usually within one business day.`;
+    invNote.innerHTML = `<strong>Quantities changed:</strong> ${esc(changed)}. Your rep will confirm stock and delivery timeline before the order is finalized, usually within one business day.`;
   } else invNote.style.display = "none";
   document.getElementById("modalForm").style.display = "block";
   document.getElementById("acceptedMsg").style.display = "none";
@@ -745,7 +757,7 @@ function showAccepted(){
   document.getElementById("modalForm").style.display = "none";
   const msg = document.getElementById("acceptedMsg");
   const invLine = needsInvCheck()
-    ? ` Because you adjusted quantities, ${Q.rep.name || "your rep"} will confirm availability first — usually within one business day.`
+    ? ` Because you adjusted quantities, ${Q.rep.name || "your rep"} will confirm availability first, usually within one business day.`
     : ` ${Q.rep.name || "Your rep"} will follow up with payment documents shortly.`;
   document.getElementById("acceptedCopy").textContent =
     `We've recorded your acceptance and let your Branch team know.` + invLine;
