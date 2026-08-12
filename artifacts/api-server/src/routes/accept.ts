@@ -1,14 +1,16 @@
 /**
- * POST /api/q/:quoteId/accept
+ * POST /api/q/:dealId/accept
  *
- * Validates the quote token, records the signature audit trail as a HubSpot
- * note on the associated deal, updates the quote status to CLOSED (accepted),
- * and optionally fires the Zapier webhook.
+ * Validates the deal-based quote token, records the signature audit trail as a
+ * HubSpot note on the deal, advances the deal to the accepted stage, and
+ * optionally fires the Zapier webhook.
+ *
+ * The quote is deal-centric: the URL param is a HubSpot deal ID and the token
+ * is validated against the value embedded in the deal's own `hub_quote_link`.
  *
  * Request body (JSON):
- *   quoteId          — HubSpot quote ID (must match URL param)
- *   dealId           — HubSpot deal ID
- *   token            — quote_link_token from window.QUOTE.meta
+ *   dealId           — HubSpot deal ID (must match URL param if provided)
+ *   token            — token from window.QUOTE.meta (embedded in hub_quote_link)
  *   signature.name   — signer's full name
  *   signature.agreed — checkbox state (must be true)
  *   signature.signedAt — ISO timestamp from the client
@@ -20,12 +22,11 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, eq, isNull, lt, sql } from "drizzle-orm";
 import {
-  validateTokenAndGetDealId,
-  fetchQuoteDataForAcceptance,
+  validateDealTokenAndStatus,
+  fetchDealDataForAcceptance,
   createAcceptanceNote,
-  updateQuoteStatusAccepted,
+  advanceDealStageAccepted,
   TokenMismatchError,
-  type ValidatedQuote,
 } from "../lib/hubspot.js";
 import { logger } from "../lib/logger.js";
 import { db, quoteAcceptancesTable } from "@workspace/db";
@@ -50,12 +51,12 @@ function buildNoteBody(opts: {
   ip: string;
   ua: string;
   total: number;
-  quoteId: string;
+  dealId: string;
   availabilityCheck: boolean;
   lineItems: Array<{ sku?: string; name?: string; qty: number; price: number; quotedQty?: number }>;
 }): string {
   const lines: string[] = [
-    `✅ Quote #${opts.quoteId} accepted via Branch quote portal`,
+    `Quote for deal #${opts.dealId} accepted via Branch quote portal`,
     ``,
     `Signer: ${opts.signerName}`,
     `Signed at: ${opts.signedAt}`,
@@ -133,20 +134,20 @@ async function fireZapierWebhook(payload: Record<string, unknown>): Promise<void
   }
 }
 
-router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
-  const rawQuoteId = req.params["quoteId"];
-  const quoteId: string = Array.isArray(rawQuoteId)
-    ? (rawQuoteId[0] ?? "")
-    : (rawQuoteId ?? "");
+router.post("/q/:dealId/accept", async (req: Request, res: Response) => {
+  const rawDealId = req.params["dealId"];
+  const dealId: string = Array.isArray(rawDealId)
+    ? (rawDealId[0] ?? "")
+    : (rawDealId ?? "");
 
-  if (!quoteId) {
-    res.status(400).json({ error: "Missing quoteId in URL" });
+  if (!dealId) {
+    res.status(400).json({ error: "Missing dealId in URL" });
     return;
   }
 
   const body = req.body as {
-    quoteId?: string;
-    dealId?: string;   // informational only — never used for writes; dealId is derived server-side
+    quoteId?: string;  // informational only (deal-centric flow) — never used for writes
+    dealId?: string;
     token?: string;
     signature?: { name?: string; agreed?: boolean; signedAt?: string };
     total?: number;
@@ -160,10 +161,10 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
     return;
   }
 
-  // If the client sends quoteId in the body it must match the URL param.
+  // If the client sends dealId in the body it must match the URL param.
   // This guards against confused-deputy payloads where the URL and body disagree.
-  if (body.quoteId !== undefined && body.quoteId !== quoteId) {
-    res.status(400).json({ error: "quoteId in body does not match URL" });
+  if (body.dealId !== undefined && body.dealId !== dealId) {
+    res.status(400).json({ error: "dealId in body does not match URL" });
     return;
   }
 
@@ -185,25 +186,22 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
   const signedAt = new Date().toISOString();
 
   try {
-    // ── 1. Validate token + derive the authoritative dealId from HubSpot ─────
-    //    The client-supplied dealId is intentionally ignored for all writes.
-    //    We look up the deal association server-side so no client can redirect
-    //    note writes to an arbitrary HubSpot deal.
-    //
-    //    In parallel, fetch the authoritative quote data (total + line items)
-    //    so the audit note is built from HubSpot's own records rather than
-    //    client-supplied figures that could be tampered with.
+    // ── 1. Validate token against the deal's own hub_quote_link ──────────────
+    //    The token is the gate. In parallel, fetch the authoritative acceptance
+    //    data (total + line items) from the deal's own line items so the audit
+    //    note is built from HubSpot's own records rather than client-supplied
+    //    figures that could be tampered with.
     const [validated, authoritative] = await Promise.all([
-      validateTokenAndGetDealId(quoteId, body.token),
-      fetchQuoteDataForAcceptance(quoteId),
+      validateDealTokenAndStatus(dealId, body.token),
+      fetchDealDataForAcceptance(dealId),
     ]);
-    const { dealId: authorizedDealId, status: currentStatus } = validated;
+    const authorizedDealId = dealId;
 
     // ── 1a. Fast serial-replay pre-check ────────────────────────────────────
-    //    If HubSpot already shows CLOSED we can return 409 immediately without
-    //    touching the database or performing any writes.
-    if (currentStatus === "CLOSED") {
-      logger.warn({ quoteId }, "Replay attempt on already-accepted quote (HubSpot status=CLOSED)");
+    //    If the deal already sits in the accepted stage we can return 409
+    //    immediately without touching the database or performing any writes.
+    if (validated.alreadyAccepted) {
+      logger.warn({ dealId }, "Replay attempt on already-accepted deal (already in accepted stage)");
       res.status(409).json({ error: "This quote has already been accepted." });
       return;
     }
@@ -219,8 +217,9 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
     );
 
     // ── 2. Atomic claim — transactional INSERT with lease-based takeover ────
-    //    A row in quote_acceptances with quote_id as primary key is the single
-    //    source of truth for who owns the acceptance.  We use a SERIALIZABLE
+    //    A row in quote_acceptances keyed by the deal ID is the single source
+    //    of truth for who owns the acceptance (the quote_id column stores the
+    //    deal ID in this deal-centric flow).  We use a SERIALIZABLE
     //    transaction to:
     //      a) DELETE any stale uncompleted claim whose lease has expired
     //         (claimed_at > CLAIM_LEASE_MS ago, completed_at IS NULL)
@@ -243,7 +242,7 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
           .delete(quoteAcceptancesTable)
           .where(
             and(
-              eq(quoteAcceptancesTable.quoteId, quoteId),
+              eq(quoteAcceptancesTable.quoteId, dealId),
               isNull(quoteAcceptancesTable.completedAt),
               lt(quoteAcceptancesTable.claimedAt, leaseExpiry),
             ),
@@ -251,7 +250,7 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
 
         // Claim ownership — throws on unique conflict if a fresh claim exists.
         await tx.insert(quoteAcceptancesTable).values({
-          quoteId,
+          quoteId: dealId,
           signerName: body.signature.name,
           ip,
         });
@@ -266,15 +265,15 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
         const existing = await db
           .select()
           .from(quoteAcceptancesTable)
-          .where(eq(quoteAcceptancesTable.quoteId, quoteId))
+          .where(eq(quoteAcceptancesTable.quoteId, dealId))
           .limit(1);
         const row = existing[0];
         if (row?.completedAt) {
-          logger.warn({ quoteId }, "Replay attempt — acceptance already completed (DB claim)");
+          logger.warn({ dealId }, "Replay attempt — acceptance already completed (DB claim)");
           res.status(409).json({ error: "This quote has already been accepted." });
         } else {
           // A fresh in-flight request owns the claim.
-          logger.warn({ quoteId }, "Concurrent acceptance attempt — claim already held");
+          logger.warn({ dealId }, "Concurrent acceptance attempt — claim already held");
           res.status(409).json({
             error: "This quote is currently being processed. Please try again in a moment.",
           });
@@ -296,7 +295,7 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
       ip,
       ua,
       total: authoritative.total,
-      quoteId,
+      dealId,
       availabilityCheck,
       lineItems: authoritative.lineItems,
     });
@@ -306,7 +305,6 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
     //    signer can retry.  On success we stamp completed_at to prevent replays.
     const zapierPayload = {
       event: "quote_accepted",
-      quoteId,
       dealId: authorizedDealId,
       signerName: body.signature.name,
       signedAt,
@@ -319,7 +317,7 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
     try {
       await Promise.all([
         createAcceptanceNote(authorizedDealId, noteBody),
-        updateQuoteStatusAccepted(quoteId),
+        advanceDealStageAccepted(authorizedDealId),
         fireZapierWebhook(zapierPayload),
       ]);
     } catch (writeErr) {
@@ -327,8 +325,8 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
       if (claimInserted) {
         await db
           .delete(quoteAcceptancesTable)
-          .where(eq(quoteAcceptancesTable.quoteId, quoteId))
-          .catch((delErr) => logger.error({ delErr, quoteId }, "Failed to release acceptance claim after write error"));
+          .where(eq(quoteAcceptancesTable.quoteId, dealId))
+          .catch((delErr) => logger.error({ delErr, dealId }, "Failed to release acceptance claim after write error"));
       }
       throw writeErr;
     }
@@ -337,24 +335,24 @@ router.post("/q/:quoteId/accept", async (req: Request, res: Response) => {
     await db
       .update(quoteAcceptancesTable)
       .set({ completedAt: new Date() })
-      .where(eq(quoteAcceptancesTable.quoteId, quoteId))
+      .where(eq(quoteAcceptancesTable.quoteId, dealId))
       .catch((stampErr) =>
-        // Non-fatal: HubSpot status is already CLOSED, so the fast pre-check
-        // above will catch replays even if this stamp fails.
-        logger.warn({ stampErr, quoteId }, "Failed to stamp completed_at on acceptance claim"),
+        // Non-fatal: the DB claim and (when configured) the accepted deal stage
+        // also guard against replays even if this stamp fails.
+        logger.warn({ stampErr, dealId }, "Failed to stamp completed_at on acceptance claim"),
       );
 
-    logger.info({ quoteId, dealId: authorizedDealId, signerName: body.signature.name }, "Quote accepted");
+    logger.info({ dealId: authorizedDealId, signerName: body.signature.name }, "Quote accepted");
 
     res.status(200).json({ ok: true, message: "Quote accepted successfully" });
   } catch (err) {
     if (err instanceof TokenMismatchError) {
-      logger.warn({ quoteId }, "Token mismatch on accept");
+      logger.warn({ dealId }, "Token mismatch on accept");
       res.status(403).json({ error: "Invalid or expired quote link" });
       return;
     }
 
-    logger.error({ err, quoteId }, "Error processing quote acceptance");
+    logger.error({ err, dealId }, "Error processing quote acceptance");
     res.status(500).json({ error: "Failed to record acceptance. Please try again or contact your Branch rep." });
   }
 });

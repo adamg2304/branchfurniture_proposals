@@ -86,6 +86,10 @@ interface DealProperties {
   hubspot_owner_id?: string | null;
   dealname?: string | null;
   floorplan?: string | null;
+  hub_quote_link?: string | null;
+  dealstage?: string | null;
+  createdate?: string | null;
+  closedate?: string | null;
 }
 
 interface ContactProperties {
@@ -180,6 +184,24 @@ async function resolveFileUrl(fileId: string): Promise<string> {
     logger.warn({ fileId: id, status: (err as { status?: number }).status }, "Could not resolve floorplan file URL");
     return "";
   }
+}
+
+/**
+ * Extract the token from a deal's stored `hub_quote_link`.
+ *
+ * The link is the canonical public URL we write onto the deal, of the form
+ * `https://host/api/q/{dealId}-{token}`. The token is the segment after the
+ * first hyphen of the final path component. dealId is numeric and the token is
+ * hex, so splitting on the first hyphen is unambiguous. Returns "" when the
+ * link is empty or malformed — callers treat that as "no valid token", so a
+ * deal that was never provisioned can never be opened with a guessed token.
+ */
+function extractStoredToken(hubQuoteLink: string | null | undefined): string {
+  const link = (hubQuoteLink ?? "").trim();
+  if (!link) return "";
+  const lastSegment = link.split("/").pop() ?? "";
+  const dash = lastSegment.indexOf("-");
+  return dash >= 0 ? lastSegment.slice(dash + 1) : "";
 }
 
 // ─── Main fetch function ──────────────────────────────────────────────────────
@@ -394,30 +416,139 @@ export async function fetchQuoteDataForAcceptance(
 }
 
 /**
- * Fetch the most recent quote for a deal and return the full render payload.
+ * Deal-centric render — no native HubSpot Quote object involved.
  *
- * Picks the quote with the highest numeric ID (most recently created).
- * No token validation — intended for internal/rep use via /api/d/:dealId.
+ * The source of truth is the DEAL and its directly-associated line items.
+ * The total is computed from the line items (White Glove split out into its
+ * own summary line, mirroring the template). Pass `urlToken = null` for the
+ * bare rep route (/api/d/:dealId, no validation); pass a token for the public
+ * tokenized link (/api/q/:dealId-:token), which is validated against the token
+ * embedded in the deal's own `hub_quote_link`.
  */
-export async function fetchQuotePayloadForDeal(dealId: string): Promise<QuotePayload> {
-  // Get all quotes associated with this deal
-  const assocResult = await hs<{ results: Array<{ id: string; type: string }> }>(
-    `/crm/v3/objects/deals/${dealId}/associations/quotes`,
+export async function fetchDealQuote(
+  dealId: string,
+  urlToken: string | null,
+): Promise<QuotePayload> {
+  // 1. Fetch the deal first — we need hub_quote_link to validate the token
+  //    before doing any further work, plus owner/name/floorplan/dates.
+  const deal = await hs<HsObject<DealProperties>>(
+    `/crm/v3/objects/deals/${dealId}?properties=hubspot_owner_id,dealname,floorplan,hub_quote_link,dealstage,createdate,closedate`,
   );
 
-  const quoteIds = assocResult.results.map((r) => r.id);
-  if (quoteIds.length === 0) {
-    throw Object.assign(new Error("NO_QUOTES"), { message: "NO_QUOTES" });
+  // Token validation — only for the public tokenized link.
+  if (urlToken !== null) {
+    const stored = extractStoredToken(deal.properties.hub_quote_link);
+    if (!stored || stored !== urlToken) {
+      throw new TokenMismatchError();
+    }
   }
 
-  // Pick the quote with the highest numeric ID (most recently created)
-  const quoteId = quoteIds
-    .map((id) => ({ id, n: parseInt(id, 10) }))
-    .sort((a, b) => b.n - a.n)[0]!.id;
+  // 2. Fan out: the deal's own line items + contact/company associations.
+  const [lineItemAssocs, contactAssocs, companyAssocs] = await Promise.all([
+    hs<HsAssociationsResult>(`/crm/v4/objects/deals/${dealId}/associations/line_items`),
+    hs<HsAssociationsResult>(`/crm/v4/objects/deals/${dealId}/associations/contacts`),
+    hs<HsAssociationsResult>(`/crm/v4/objects/deals/${dealId}/associations/companies`),
+  ]);
 
-  // Reuse the core fetch, but skip token validation by passing a sentinel
-  // that we'll match against — we patch fetchQuotePayload to accept null token
-  return fetchQuotePayloadInternal(quoteId, dealId, null);
+  const lineItemIds = lineItemAssocs.results.map((r) => String(r.toObjectId));
+  const contactId = String(contactAssocs.results[0]?.toObjectId ?? "");
+  const companyId = String(companyAssocs.results[0]?.toObjectId ?? "");
+  const ownerId = deal.properties.hubspot_owner_id ?? "";
+
+  const liProps = ["name", "quantity", "price", "amount", "hs_sku", "description", "hs_url", "hs_images", "hub_image", "hs_total_discount"];
+
+  const [lineItemsBatch, contactRes, companyRes, ownerRes, floorplanUrl] = await Promise.all([
+    lineItemIds.length > 0
+      ? hs<HsBatchResult<LineItemProperties>>(`/crm/v3/objects/line_items/batch/read`, {
+          method: "POST",
+          body: JSON.stringify({ inputs: lineItemIds.map((id) => ({ id })), properties: liProps }),
+        })
+      : Promise.resolve({ results: [] as HsObject<LineItemProperties>[] }),
+    contactId
+      ? hs<HsBatchResult<ContactProperties>>(`/crm/v3/objects/contacts/batch/read`, {
+          method: "POST",
+          body: JSON.stringify({ inputs: [{ id: contactId }], properties: ["firstname","lastname","email","jobtitle","city","state"] }),
+        })
+      : Promise.resolve({ results: [] as HsObject<ContactProperties>[] }),
+    companyId
+      ? hs<HsBatchResult<CompanyProperties>>(`/crm/v3/objects/companies/batch/read`, {
+          method: "POST",
+          body: JSON.stringify({ inputs: [{ id: companyId }], properties: ["name","city","state"] }),
+        })
+      : Promise.resolve({ results: [] as HsObject<CompanyProperties>[] }),
+    ownerId
+      ? hs<OwnerRecord>(`/crm/v3/owners/${ownerId}`).catch((err) => {
+          logger.warn({ ownerId, status: (err as { status?: number }).status }, "Could not fetch owner");
+          return null as OwnerRecord | null;
+        })
+      : Promise.resolve(null as OwnerRecord | null),
+    resolveFileUrl(deal.properties.floorplan ?? ""),
+  ]);
+
+  const contact = contactRes.results[0]?.properties ?? {};
+  const company = companyRes.results[0]?.properties ?? {};
+  const owner = ownerRes;
+
+  const contactName = [contact.firstname, contact.lastname].filter(Boolean).join(" ");
+  const companyLocation = [company.city, company.state].filter(Boolean).join(", ");
+  const repName = [owner?.firstName, owner?.lastName].filter(Boolean).join(" ");
+
+  const allLineItems = lineItemsBatch.results;
+  const wgItem = allLineItems.find((li) => isWhiteGlove(li.properties.name));
+  const productItems = allLineItems.filter((li) => !isWhiteGlove(li.properties.name));
+
+  const wgAmount = parseNum(wgItem?.properties.amount) || parseNum(wgItem?.properties.price) * (Math.round(parseNum(wgItem?.properties.quantity)) || 1);
+  const productSubtotal = productItems.reduce(
+    (sum, li) => sum + parseNum(li.properties.price) * parseNum(li.properties.quantity), 0,
+  );
+
+  // Discount is the sum of per-line discounts on the product items.
+  const discount = productItems.reduce((sum, li) => sum + parseNum(li.properties.hs_total_discount), 0);
+  // Tax is computed by the tax provider in Phase 2. Until then it is 0.
+  const taxAmount = 0;
+  const preTax = productSubtotal + wgAmount - discount;
+  const wgRate = productSubtotal > 0 ? wgAmount / productSubtotal : 0;
+  const taxRate = preTax > 0 ? taxAmount / preTax : 0;
+  const taxLabel = companyLocation ? `Tax (${companyLocation})` : "Tax";
+
+  const items = productItems.map((li) => {
+    const p = li.properties;
+    const price = parseNum(p.price);
+    const qty = Math.round(parseNum(p.quantity)) || 1;
+    const disc = qty > 0 ? Math.round((parseNum(p.hs_total_discount) / qty) * 100) / 100 : 0;
+    const imageUrl = p.hub_image && p.hub_image.trim() ? p.hub_image.trim() : parseHsImages(p.hs_images);
+    return { name: p.name ?? "", spec: p.description ?? "", sku: p.hs_sku ?? "", price, disc, qty, orig: qty, imageUrl, productUrl: p.hs_url ?? "" };
+  });
+
+  return {
+    customer: { company: company.name ?? "", location: companyLocation, contactName, contactTitle: contact.jobtitle ?? "", contactEmail: contact.email ?? "" },
+    rep: { name: repName, title: "Account Executive", email: owner?.email ?? "", phone: "" },
+    meta: {
+      ref: deal.properties.dealname ?? dealId,
+      quoteId: dealId,
+      dealId,
+      token: urlToken ?? "",
+      created: toDateString(deal.properties.createdate),
+      expires: toDateString(deal.properties.closedate),
+      acceptUrl: `/api/q/${dealId}/accept`,
+      floorplanUrl,
+    },
+    hasWhiteGlove: Boolean(wgItem),
+    rates: { wgAmount: round2(wgAmount), wgRate: round6(wgRate), discount: round2(discount), taxAmount: round2(taxAmount), taxRate: round6(taxRate), taxLabel },
+    items,
+  };
+}
+
+/**
+ * Bare deal render for the rep route (/api/d/:dealId) — no token validation.
+ * Throws NO_QUOTES when the deal has no line items to render.
+ */
+export async function fetchQuotePayloadForDeal(dealId: string): Promise<QuotePayload> {
+  const payload = await fetchDealQuote(dealId, null);
+  if (payload.items.length === 0 && !payload.hasWhiteGlove) {
+    throw Object.assign(new Error("NO_QUOTES"), { message: "NO_QUOTES" });
+  }
+  return payload;
 }
 
 /**
@@ -582,5 +713,112 @@ export async function updateQuoteStatusAccepted(quoteId: string): Promise<void> 
         hs_status: "CLOSED",
       },
     }),
+  });
+}
+
+// ─── Deal-based acceptance (deal-centric flow) ────────────────────────────────
+
+export interface ValidatedDeal {
+  dealId: string;
+  /** true when the deal already sits in the configured accepted stage. */
+  alreadyAccepted: boolean;
+}
+
+/**
+ * Validate a deal-based quote token and report whether the deal is already in
+ * the accepted stage.
+ *
+ * The token is checked against the value embedded in the deal's own
+ * `hub_quote_link`, so a signer can only act on a deal that was actually
+ * provisioned with the matching link. Throws TokenMismatchError otherwise.
+ */
+export async function validateDealTokenAndStatus(
+  dealId: string,
+  urlToken: string,
+): Promise<ValidatedDeal> {
+  const deal = await hs<HsObject<Pick<DealProperties, "hub_quote_link" | "dealstage">>>(
+    `/crm/v3/objects/deals/${dealId}?properties=hub_quote_link,dealstage`,
+  );
+
+  const stored = extractStoredToken(deal.properties.hub_quote_link);
+  if (!stored || stored !== urlToken) {
+    throw new TokenMismatchError();
+  }
+
+  const acceptedStage = process.env["ACCEPTED_DEAL_STAGE_ID"];
+  const alreadyAccepted = acceptedStage
+    ? deal.properties.dealstage === acceptedStage
+    : false;
+
+  return { dealId, alreadyAccepted };
+}
+
+/**
+ * Fetch authoritative acceptance data (total + product line items) straight
+ * from the deal's own line items. The total is computed from the line items
+ * (products + White Glove, less per-line discounts); there is no native quote
+ * amount to read.
+ */
+export async function fetchDealDataForAcceptance(
+  dealId: string,
+): Promise<AuthoritativeQuoteData> {
+  const assoc = await hs<HsAssociationsResult>(
+    `/crm/v4/objects/deals/${dealId}/associations/line_items`,
+  );
+  const ids = assoc.results.map((r) => String(r.toObjectId));
+  if (ids.length === 0) {
+    return { total: 0, lineItems: [] };
+  }
+
+  const batch = await hs<HsBatchResult<LineItemProperties>>(
+    `/crm/v3/objects/line_items/batch/read`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        inputs: ids.map((id) => ({ id })),
+        properties: ["name", "quantity", "price", "hs_sku", "amount", "hs_total_discount"],
+      }),
+    },
+  );
+
+  const all = batch.results;
+  const products = all.filter((li) => !isWhiteGlove(li.properties.name));
+  const wgItem = all.find((li) => isWhiteGlove(li.properties.name));
+
+  const productSubtotal = products.reduce(
+    (sum, li) => sum + parseNum(li.properties.price) * parseNum(li.properties.quantity), 0,
+  );
+  const wgAmount = parseNum(wgItem?.properties.amount) || parseNum(wgItem?.properties.price) * (Math.round(parseNum(wgItem?.properties.quantity)) || 1);
+  const discount = products.reduce((sum, li) => sum + parseNum(li.properties.hs_total_discount), 0);
+  const total = round2(productSubtotal + wgAmount - discount);
+
+  const lineItems: AuthoritativeLineItem[] = products.map((li) => ({
+    sku: li.properties.hs_sku ?? "",
+    name: li.properties.name ?? "",
+    qty: Math.round(parseNum(li.properties.quantity)) || 1,
+    price: parseNum(li.properties.price),
+  }));
+
+  return { total, lineItems };
+}
+
+/**
+ * Advance the deal to the accepted stage, if one is configured via the
+ * ACCEPTED_DEAL_STAGE_ID environment variable. When unset, acceptance still
+ * records the audit note but the stage is left unchanged (logged loudly so the
+ * misconfiguration is obvious). This is how acceptance "pings back" to Branch.
+ */
+export async function advanceDealStageAccepted(dealId: string): Promise<void> {
+  const stageId = process.env["ACCEPTED_DEAL_STAGE_ID"];
+  if (!stageId) {
+    logger.warn(
+      { dealId },
+      "ACCEPTED_DEAL_STAGE_ID is not set — acceptance recorded but deal stage not advanced",
+    );
+    return;
+  }
+  await hs<unknown>(`/crm/v3/objects/deals/${dealId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ properties: { dealstage: stageId } }),
   });
 }

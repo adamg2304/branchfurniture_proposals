@@ -1,11 +1,15 @@
 /**
  * GET  /api/q/:slug          — serve the quote page (HTML)
- *   slug format: {quoteId}-{token}
- *   quoteId is a numeric HubSpot ID; token is everything after the first hyphen.
+ *   slug format: {dealId}-{token}
+ *   dealId is a numeric HubSpot deal ID; token is everything after the first hyphen.
+ *
+ * The quote is rendered directly from the DEAL and its line items (no native
+ * HubSpot Quote object). The token is validated against the value embedded in
+ * the deal's own `hub_quote_link`.
  *
  * The handler:
- *   1. Parses quoteId + token from the slug
- *   2. Fetches HubSpot data and validates the token
+ *   1. Parses dealId + token from the slug
+ *   2. Fetches the deal + line items from HubSpot and validates the token
  *   3. Builds window.QUOTE (same shape as quote-sample.js)
  *   4. Injects it inline into the HTML template (replaces the <script src="quote-sample.js"> line)
  *   5. Serves the resulting HTML — the browser never calls HubSpot
@@ -15,7 +19,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { fetchQuotePayload, TokenMismatchError, type QuotePayload } from "../lib/hubspot.js";
+import { fetchDealQuote, TokenMismatchError, type QuotePayload } from "../lib/hubspot.js";
 import { logger } from "../lib/logger.js";
 
 /**
@@ -72,16 +76,16 @@ router.get("/q/:slug", async (req: Request, res: Response) => {
   const rawSlug = req.params["slug"];
   const slug: string = Array.isArray(rawSlug) ? (rawSlug[0] ?? "") : (rawSlug ?? "");
 
-  // slug = "{quoteId}-{token}"  — quoteId is always numeric, so split on first hyphen
+  // slug = "{dealId}-{token}"  — dealId is always numeric, so split on first hyphen
   const dashIdx = slug.indexOf("-");
   if (dashIdx < 1) {
     res.status(400).send("Invalid quote link.");
     return;
   }
-  const quoteId: string = slug.slice(0, dashIdx);
+  const dealId: string = slug.slice(0, dashIdx);
   const urlToken: string = slug.slice(dashIdx + 1);
 
-  if (!quoteId || !urlToken) {
+  if (!dealId || !urlToken) {
     res.status(400).send("Invalid quote link.");
     return;
   }
@@ -96,7 +100,7 @@ router.get("/q/:slug", async (req: Request, res: Response) => {
   try {
     const [template, payload] = await Promise.all([
       readFile(TEMPLATE_PATH, "utf-8"),
-      fetchQuotePayload(quoteId, urlToken),
+      fetchDealQuote(dealId, urlToken),
     ]);
 
     const html = injectQuote(template, payload);
@@ -109,19 +113,19 @@ router.get("/q/:slug", async (req: Request, res: Response) => {
       .send(html);
   } catch (err) {
     if (err instanceof TokenMismatchError) {
-      logger.warn({ quoteId }, "Token mismatch for quote");
+      logger.warn({ dealId }, "Token mismatch for quote");
       res.status(403).send("This quote link is invalid or has expired. Please contact your Branch rep.");
       return;
     }
 
     const hsErr = err as { status?: number };
     if (hsErr.status === 404) {
-      logger.warn({ quoteId }, "Quote not found in HubSpot");
+      logger.warn({ dealId }, "Deal not found in HubSpot");
       res.status(404).send("Quote not found. Please contact your Branch rep.");
       return;
     }
 
-    logger.error({ err, quoteId }, "Error fetching quote");
+    logger.error({ err, dealId }, "Error fetching quote");
     res.status(500).send("Something went wrong loading your quote. Please try again or contact your Branch rep.");
   }
 });
