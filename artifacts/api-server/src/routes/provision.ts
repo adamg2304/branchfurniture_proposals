@@ -40,6 +40,76 @@ function extractDealId(req: Request): string {
   return candidate != null ? String(candidate) : "";
 }
 
+/**
+ * POST /api/hubspot/webhook
+ *
+ * Receiver for HubSpot CRM webhook subscriptions defined in the
+ * `branch-integrations` developer project (no Operations Hub required). The
+ * project subscribes to `deal.propertyChange` on `dealstage`; HubSpot POSTs an
+ * array of change events here. For every event where the deal moved INTO the
+ * "Quote Sent" stage, we provision (idempotently) the deal's tokenized quote
+ * link. Returns 200 quickly so HubSpot does not retry.
+ *
+ * Auth: shared secret in `?secret=` or the `X-Provision-Secret` header, matched
+ * against PROVISION_SECRET (include it in the subscription's target URL).
+ */
+interface HubSpotWebhookEvent {
+  subscriptionType?: string;
+  objectId?: number | string;
+  propertyName?: string;
+  propertyValue?: string;
+}
+
+router.post("/hubspot/webhook", async (req: Request, res: Response) => {
+  const secret = process.env["PROVISION_SECRET"];
+  if (!secret) {
+    logger.error("PROVISION_SECRET is not set");
+    res.status(503).json({ error: "Webhook is not configured." });
+    return;
+  }
+  if (suppliedSecret(req) !== secret) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  if (!process.env["HUBSPOT_PRIVATE_APP_TOKEN"]) {
+    res.status(503).json({ error: "Quote service is not configured." });
+    return;
+  }
+
+  const quoteSentStage = process.env["QUOTE_SENT_STAGE_ID"] || "1523817";
+  const events: HubSpotWebhookEvent[] = Array.isArray(req.body)
+    ? (req.body as HubSpotWebhookEvent[])
+    : req.body
+      ? [req.body as HubSpotWebhookEvent]
+      : [];
+
+  // Deals that just entered the Quote Sent stage (dedup by id).
+  const dealIds = [
+    ...new Set(
+      events
+        .filter(
+          (e) =>
+            e.propertyName === "dealstage" &&
+            String(e.propertyValue) === quoteSentStage &&
+            e.objectId != null,
+        )
+        .map((e) => String(e.objectId)),
+    ),
+  ];
+
+  // Acknowledge immediately; provisioning is best-effort and idempotent.
+  res.status(200).json({ ok: true, received: events.length, provisioning: dealIds.length });
+
+  for (const dealId of dealIds) {
+    try {
+      const result = await provisionDealQuoteLink(dealId);
+      logger.info({ dealId, created: result.created }, "Webhook provisioned deal quote link");
+    } catch (err) {
+      logger.error({ err, dealId }, "Webhook failed to provision deal quote link");
+    }
+  }
+});
+
 router.post("/provision", async (req: Request, res: Response) => {
   const secret = process.env["PROVISION_SECRET"];
   if (!secret) {
