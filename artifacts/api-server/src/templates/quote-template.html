@@ -254,6 +254,7 @@
     <p class="sub" id="heroSub"></p>
     <div class="meta">
       <div><h3>Prepared for</h3><p id="metaPreparedFor"></p></div>
+      <div id="metaProjectCell" style="display:none"><h3>Project</h3><p id="metaProject"></p></div>
       <div><h3>Your Branch team</h3><p id="metaRep"></p></div>
       <div><h3>Validity</h3><p id="metaValidity"></p><span class="badge" id="daysLeft"></span></div>
     </div>
@@ -598,6 +599,13 @@ function renderHeader(){
   document.getElementById("heroSub").textContent = [c.location, "Quote #" + m.ref].filter(Boolean).join("  ·  ");
   document.getElementById("metaPreparedFor").innerHTML =
     [esc(c.contactName), esc(c.contactTitle), esc(c.contactEmail)].filter(Boolean).join("<br>");
+  const proj = Q.project;
+  if(proj && (proj.name || proj.address)){
+    const cityLine = [[proj.city, proj.state].filter(Boolean).join(", "), proj.zip].filter(Boolean).join(" ");
+    document.getElementById("metaProject").innerHTML =
+      [proj.name, proj.address, cityLine].filter(s => s && s.trim()).map(esc).join("<br>");
+    document.getElementById("metaProjectCell").style.display = "";
+  }
   document.getElementById("metaRep").innerHTML =
     [esc(r.name), esc(r.title), esc(r.email), esc(r.phone)].filter(Boolean).join("<br>");
   document.getElementById("metaValidity").innerHTML =
@@ -622,13 +630,18 @@ function thumbHTML(it){
     : `<div class="thumb">${inner}</div>`;
 }
 
+const WG_SKU = "White Glove Delivery";
+function isWG(i){ return (i.sku||"") === WG_SKU || /white glove/i.test(i.name||""); }
+function productItems(){ return Q.items.filter(i => !isWG(i)); }  // rows + subtotal exclude WG
+function wgItem(){ return Q.items.find(isWG); }                    // WG shown as its own summary line
+
 function movedTooFar(it){
   return Math.abs(it.qty - it.orig) > Math.max(2, Math.round(0.2 * it.orig));
 }
-function needsInvCheck(){ return Q.items.some(movedTooFar); }
+function needsInvCheck(){ return productItems().some(movedTooFar); }
 
 function renderItems(){
-  document.getElementById("itemRows").innerHTML = Q.items.map((it,idx)=>{
+  document.getElementById("itemRows").innerHTML = Q.items.map((it,idx)=>({it,idx})).filter(x=>!isWG(x.it)).map(({it,idx})=>{
     const moved = movedTooFar(it);
     const nameHTML = it.productUrl
       ? `<a href="${esc(it.productUrl)}" target="_blank" rel="noopener">${esc(it.name)}</a>`
@@ -636,11 +649,12 @@ function renderItems(){
     const disc = it.disc || 0;                              // per-unit discount ($)
     const netUnit = Math.round((it.price - disc) * 100) / 100;
     const netLine = Math.round(netUnit * it.qty * 100) / 100;
+    const specLine = [it.spec, it.size].filter(Boolean).join(" · ");
     return `<div class="item">
       ${thumbHTML(it)}
       <div>
         <div class="name">${nameHTML}</div>
-        <div class="spec">${esc(it.spec)}</div>
+        ${specLine ? `<div class="spec">${esc(specLine)}</div>` : ""}
         ${it.sku ? `<div class="sku">SKU ${esc(it.sku)}</div>` : ""}
         ${moved?`<div class="qtynote">Quantity changed from ${it.orig}, availability check applies</div>`:""}
       </div>
@@ -667,14 +681,18 @@ function renderItems(){
    live-updating UX working without pretending to be an exact re-quote; the
    availability-check banner already tells the client + rep to reconfirm.   */
 function calc(){
-  const products = Q.items.reduce((s,i)=> s + Math.round(i.price*i.qty*100)/100, 0);
+  // Products = non-White-Glove line items only. WG is shown as its own summary
+  // line (from a WG line item if present, else the quoted rate).
+  const prods = productItems();
+  const products = prods.reduce((s,i)=> s + Math.round(i.price*i.qty*100)/100, 0);
   // Prefer per-line discounts (scale with qty). Fall back to the quoted
   // rollup for live quotes whose items don't yet carry per-unit discount.
-  const hasLineDisc = Q.items.some(i => i.disc != null);
+  const hasLineDisc = prods.some(i => i.disc != null);
   const discount = hasLineDisc
-    ? Q.items.reduce((s,i)=> s + Math.round((i.disc||0)*i.qty*100)/100, 0)
+    ? prods.reduce((s,i)=> s + Math.round((i.disc||0)*i.qty*100)/100, 0)
     : (Q.rates.discount || 0);
   const edited = needsAnyEdit();
+  const wgLine = wgItem();
 
   let wg, tax;
   if(edited){
@@ -682,14 +700,14 @@ function calc(){
     const preTax = Math.round((products + wg - discount)*100)/100;
     tax = Math.round(preTax * Q.rates.taxRate * 100)/100;
   } else {
-    wg  = Q.rates.wgAmount;
-    tax = Q.rates.taxAmount;
+    wg  = wgLine ? Math.round(wgLine.price*wgLine.qty*100)/100 : (Q.rates.wgAmount || 0);
+    tax = Q.rates.taxAmount || 0;
   }
   const preTax = Math.round((products + wg - discount)*100)/100;
   return {products, wg, discount, preTax, tax, total: Math.round((preTax+tax)*100)/100};
 }
 // any line qty differs from the quoted qty (drives verbatim-vs-recompute)
-function needsAnyEdit(){ return Q.items.some(i => i.qty !== i.orig); }
+function needsAnyEdit(){ return productItems().some(i => i.qty !== i.orig); }
 
 function renderSummary(){
   const c = calc();
@@ -789,8 +807,9 @@ function showAccepted(){
 
 /* ---------- Conditional sections: White Glove + Floorplan ---------- */
 function applyConditionalSections(){
-  // White Glove only appears when the deal has a White Glove line item.
-  const hasWG = (Q.hasWhiteGlove != null) ? Q.hasWhiteGlove : (Q.rates && Q.rates.wgAmount > 0);
+  // White Glove only appears when the deal has a White Glove line item
+  // (or a quoted WG amount / explicit flag on older payloads).
+  const hasWG = !!wgItem() || Q.hasWhiteGlove === true || (Q.rates && Q.rates.wgAmount > 0);
   if(!hasWG){
     ["wgRow","whiteglove"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
     const link=document.getElementById("wgFineLink"); if(link) link.style.display="none";
