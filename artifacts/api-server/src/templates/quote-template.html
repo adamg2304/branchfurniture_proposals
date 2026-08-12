@@ -64,8 +64,9 @@
   .qty button:hover{background:#eae5da}
   .qty input{width:44px;height:34px;border:none;text-align:center;font-size:14.5px;font-weight:600;background:#fff;padding:0;-webkit-appearance:none;-moz-appearance:textfield;appearance:textfield;line-height:34px}
   .qty input::-webkit-outer-spin-button,.qty input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-  .item .line-total{font-weight:600;font-size:15.5px;min-width:92px;text-align:right}
-  .item .unit{color:var(--muted);font-size:12.5px;text-align:right}
+  .item .line-total{font-weight:700;font-size:16px;min-width:104px;text-align:right;color:var(--ink);letter-spacing:-.01em}
+  .item .unit{color:var(--muted);font-size:12.5px;text-align:right;margin-top:3px;white-space:nowrap}
+  .item .unit s{opacity:.6;margin-right:5px}
 
   .summary-grid{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start}
   @media(max-width:860px){.summary-grid{grid-template-columns:1fr}}
@@ -163,8 +164,8 @@
   .social-inner .tile-headline{font-family:var(--serif);font-size:28px;font-weight:400;line-height:1.18;letter-spacing:-.01em;color:var(--green-deep);margin-bottom:24px;text-align:center;max-width:600px;margin-left:auto;margin-right:auto}
   .trusted-bar{background:var(--green);border-radius:12px;padding:22px 28px;margin-bottom:28px}
   .trusted-bar .trusted-label{text-align:center;text-transform:uppercase;letter-spacing:.16em;font-size:11px;color:rgba(245,242,236,.65);font-weight:600;margin-bottom:14px}
-  .trusted-logos{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:16px 30px}
-  .trusted-logos img{max-height:28px;max-width:112px;width:auto;height:auto;object-fit:contain;filter:brightness(0) invert(1);opacity:.85}
+  .trusted-logos{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:22px 44px}
+  .trusted-logos img{height:26px;width:auto;max-width:130px;object-fit:contain;filter:brightness(0) invert(1);opacity:.8}
   .reviews-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
   @media(max-width:700px){.reviews-grid{grid-template-columns:1fr}}
   .review-card{border:1px solid var(--line);border-radius:12px;padding:22px 22px 18px}
@@ -619,6 +620,9 @@ function renderItems(){
     const nameHTML = it.productUrl
       ? `<a href="${esc(it.productUrl)}" target="_blank" rel="noopener">${esc(it.name)}</a>`
       : esc(it.name);
+    const disc = it.disc || 0;                              // per-unit discount ($)
+    const netUnit = Math.round((it.price - disc) * 100) / 100;
+    const netLine = Math.round(netUnit * it.qty * 100) / 100;
     return `<div class="item">
       ${thumbHTML(it)}
       <div>
@@ -632,9 +636,11 @@ function renderItems(){
         <input type="number" min="0" max="99" value="${it.qty}" onchange="setQty(${idx},this.value)">
         <button onclick="bump(${idx},1)" aria-label="increase">+</button>
       </div>
-      <div>
-        <div class="line-total">${fmtFixed(Math.round(it.price*it.qty*100)/100)}</div>
-        <div class="unit">${fmtFixed(it.price)} each</div>
+      <div class="price-col">
+        <div class="line-total">${fmtFixed(netLine)}</div>
+        ${disc > 0
+          ? `<div class="unit"><s>${fmtFixed(it.price)}</s> ${fmtFixed(netUnit)} ea</div>`
+          : `<div class="unit">${fmtFixed(it.price)} ea</div>`}
       </div>
     </div>`;
   }).join("");
@@ -649,7 +655,12 @@ function renderItems(){
    availability-check banner already tells the client + rep to reconfirm.   */
 function calc(){
   const products = Q.items.reduce((s,i)=> s + Math.round(i.price*i.qty*100)/100, 0);
-  const discount = Q.rates.discount || 0;
+  // Prefer per-line discounts (scale with qty). Fall back to the quoted
+  // rollup for live quotes whose items don't yet carry per-unit discount.
+  const hasLineDisc = Q.items.some(i => i.disc != null);
+  const discount = hasLineDisc
+    ? Q.items.reduce((s,i)=> s + Math.round((i.disc||0)*i.qty*100)/100, 0)
+    : (Q.rates.discount || 0);
   const edited = needsAnyEdit();
 
   let wg, tax;
