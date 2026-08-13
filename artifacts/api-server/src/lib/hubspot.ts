@@ -254,11 +254,23 @@ function shippingLineAmount(li: HsObject<LineItemProperties>): number {
 async function resolveFileUrl(fileId: string): Promise<string> {
   const id = (fileId ?? "").trim();
   if (!id) return "";
+  // Prefer a signed URL — it renders even when the file is not publicly shared,
+  // so a private floorplan still loads for a signed-out client. Both this and
+  // the direct-URL fallback require the private app to have the `files` scope.
+  try {
+    const signed = await hs<{ url?: string | null }>(`/files/v3/files/${id}/signed-url`);
+    if (signed.url) return signed.url;
+  } catch (err) {
+    logger.warn({ fileId: id, status: (err as { status?: number }).status }, "Signed floorplan URL failed; trying direct URL");
+  }
   try {
     const file = await hs<{ url?: string | null }>(`/files/v3/files/${id}`);
+    if (!file.url) {
+      logger.warn({ fileId: id }, "Floorplan file resolved but has no public URL (make the file public or grant `files` scope)");
+    }
     return file.url ?? "";
   } catch (err) {
-    logger.warn({ fileId: id, status: (err as { status?: number }).status }, "Could not resolve floorplan file URL");
+    logger.warn({ fileId: id, status: (err as { status?: number }).status }, "Could not resolve floorplan file URL (private app likely missing the `files` scope)");
     return "";
   }
 }
