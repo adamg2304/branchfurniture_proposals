@@ -111,10 +111,13 @@ function deriveAvailabilityCheck(
   return false;
 }
 
-async function fireZapierWebhook(payload: Record<string, unknown>): Promise<void> {
-  const url = process.env["ZAPIER_WEBHOOK_URL"];
+async function fireAcceptanceWebhook(payload: Record<string, unknown>): Promise<void> {
+  // ACCEPTANCE_WEBHOOK_URL is the HubSpot workflow webhook-trigger (or any
+  // endpoint) to ping when a quote is accepted. ZAPIER_WEBHOOK_URL is kept as a
+  // backward-compatible fallback.
+  const url = process.env["ACCEPTANCE_WEBHOOK_URL"] || process.env["ZAPIER_WEBHOOK_URL"];
   if (!url) {
-    logger.warn("ZAPIER_WEBHOOK_URL not set — skipping webhook");
+    logger.warn("ACCEPTANCE_WEBHOOK_URL not set — skipping acceptance webhook");
     return;
   }
   try {
@@ -124,13 +127,13 @@ async function fireZapierWebhook(payload: Record<string, unknown>): Promise<void
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      logger.warn({ status: res.status }, "Zapier webhook returned non-2xx");
+      logger.warn({ status: res.status }, "Acceptance webhook returned non-2xx");
     } else {
-      logger.info("Zapier webhook fired successfully");
+      logger.info("Acceptance webhook fired successfully");
     }
   } catch (err) {
     // Non-fatal — log and continue
-    logger.warn({ err }, "Zapier webhook request failed");
+    logger.warn({ err }, "Acceptance webhook request failed");
   }
 }
 
@@ -318,7 +321,7 @@ router.post("/q/:dealId/accept", async (req: Request, res: Response) => {
       await Promise.all([
         createAcceptanceNote(authorizedDealId, noteBody),
         advanceDealStageAccepted(authorizedDealId),
-        fireZapierWebhook(zapierPayload),
+        fireAcceptanceWebhook(zapierPayload),
       ]);
     } catch (writeErr) {
       // Release the claim so the signer can retry.

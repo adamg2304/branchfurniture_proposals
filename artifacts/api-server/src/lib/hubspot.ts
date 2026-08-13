@@ -217,6 +217,34 @@ function isWhiteGlove(name: string | null | undefined): boolean {
   );
 }
 
+// Shipping & Delivery line items are pulled out of the product rows/subtotal
+// and rolled into a single "Shipping & Delivery" summary line. Matched by SKU
+// or name (case-insensitive).
+const SHIPPING_SKUS = new Set([
+  "white glove delivery",
+  "free shipping",
+  "expedited shipping",
+  "stair carry surcharge",
+  "after hours surcharge",
+  "freight shipping",
+  "union labor surcharge",
+]);
+function isShippingItem(
+  name: string | null | undefined,
+  sku: string | null | undefined,
+): boolean {
+  const n = (name ?? "").trim().toLowerCase();
+  const s = (sku ?? "").trim().toLowerCase();
+  return SHIPPING_SKUS.has(s) || SHIPPING_SKUS.has(n) || isWhiteGlove(name);
+}
+
+/** Amount of a shipping/delivery line item: prefer `amount`, else price×qty. */
+function shippingLineAmount(li: HsObject<LineItemProperties>): number {
+  const amt = parseNum(li.properties.amount);
+  if (amt) return amt;
+  return parseNum(li.properties.price) * (Math.round(parseNum(li.properties.quantity)) || 1);
+}
+
 /**
  * Resolve a HubSpot Files API file id to a public URL. Requires the private
  * app to have the `files` scope. Returns "" if the id is empty or unresolvable,
@@ -279,9 +307,11 @@ export interface QuotePayload {
     floorplanUrl: string;
   };
   hasWhiteGlove: boolean;
+  hasShipping: boolean;
   rates: {
     wgAmount: number;
     wgRate: number;
+    shippingAmount: number;
     discount: number;
     taxAmount: number;
     taxRate: number;
@@ -542,25 +572,28 @@ export async function fetchDealQuote(
   const repName = [owner?.firstName, owner?.lastName].filter(Boolean).join(" ");
 
   const allLineItems = lineItemsBatch.results;
+  const shippingLineItems = allLineItems.filter((li) => isShippingItem(li.properties.name, li.properties.hs_sku));
+  const productItems = allLineItems.filter((li) => !isShippingItem(li.properties.name, li.properties.hs_sku));
   const wgItem = allLineItems.find((li) => isWhiteGlove(li.properties.name));
-  const productItems = allLineItems.filter((li) => !isWhiteGlove(li.properties.name));
 
   // Resolve hub_image from the Product library (by SKU) for any line item that
   // doesn't carry its own hub_image — the curated proposal image is maintained
   // on the Product, not copied onto each line item.
   const productImages = await fetchProductImagesBySku(productItems.map((li) => li.properties.hs_sku));
 
-  const wgAmount = parseNum(wgItem?.properties.amount) || parseNum(wgItem?.properties.price) * (Math.round(parseNum(wgItem?.properties.quantity)) || 1);
+  // Shipping & Delivery: the summed amount of all shipping/delivery line items
+  // (White Glove, freight, surcharges, etc.). Shown as one summary line.
+  const shippingAmount = shippingLineItems.reduce((sum, li) => sum + shippingLineAmount(li), 0);
   const productSubtotal = productItems.reduce(
     (sum, li) => sum + parseNum(li.properties.price) * parseNum(li.properties.quantity), 0,
   );
 
   // Discount is the sum of per-line discounts on the product items.
   const discount = productItems.reduce((sum, li) => sum + parseNum(li.properties.hs_total_discount), 0);
-  // Tax is computed by the tax provider in Phase 2. Until then it is 0.
+  // Tax is calculated at checkout for now (TaxJar integration is Phase 2).
   const taxAmount = 0;
-  const preTax = productSubtotal + wgAmount - discount;
-  const wgRate = productSubtotal > 0 ? wgAmount / productSubtotal : 0;
+  const preTax = productSubtotal + shippingAmount - discount;
+  const shippingRate = productSubtotal > 0 ? shippingAmount / productSubtotal : 0;
   const taxRate = preTax > 0 ? taxAmount / preTax : 0;
   const taxLabel = companyLocation ? `Tax (${companyLocation})` : "Tax";
 
@@ -592,7 +625,8 @@ export async function fetchDealQuote(
       floorplanUrl,
     },
     hasWhiteGlove: Boolean(wgItem),
-    rates: { wgAmount: round2(wgAmount), wgRate: round6(wgRate), discount: round2(discount), taxAmount: round2(taxAmount), taxRate: round6(taxRate), taxLabel },
+    hasShipping: shippingLineItems.length > 0,
+    rates: { wgAmount: round2(shippingAmount), wgRate: round6(shippingRate), shippingAmount: round2(shippingAmount), discount: round2(discount), taxAmount: round2(taxAmount), taxRate: round6(taxRate), taxLabel },
     items,
   };
 }
@@ -755,7 +789,8 @@ async function fetchQuotePayloadInternal(
       floorplanUrl: await resolveFileUrl(deal.properties.floorplan ?? ""),
     },
     hasWhiteGlove: Boolean(wgItem),
-    rates: { wgAmount: round2(wgAmount), wgRate: round6(wgRate), discount: round2(discount), taxAmount: round2(taxAmount), taxRate: round6(taxRate), taxLabel },
+    hasShipping: Boolean(wgItem),
+    rates: { wgAmount: round2(wgAmount), wgRate: round6(wgRate), shippingAmount: round2(wgAmount), discount: round2(discount), taxAmount: round2(taxAmount), taxRate: round6(taxRate), taxLabel },
     items,
   };
 }
@@ -840,15 +875,15 @@ export async function fetchDealDataForAcceptance(
   );
 
   const all = batch.results;
-  const products = all.filter((li) => !isWhiteGlove(li.properties.name));
-  const wgItem = all.find((li) => isWhiteGlove(li.properties.name));
+  const products = all.filter((li) => !isShippingItem(li.properties.name, li.properties.hs_sku));
+  const shipping = all.filter((li) => isShippingItem(li.properties.name, li.properties.hs_sku));
 
   const productSubtotal = products.reduce(
     (sum, li) => sum + parseNum(li.properties.price) * parseNum(li.properties.quantity), 0,
   );
-  const wgAmount = parseNum(wgItem?.properties.amount) || parseNum(wgItem?.properties.price) * (Math.round(parseNum(wgItem?.properties.quantity)) || 1);
+  const shippingAmount = shipping.reduce((sum, li) => sum + shippingLineAmount(li), 0);
   const discount = products.reduce((sum, li) => sum + parseNum(li.properties.hs_total_discount), 0);
-  const total = round2(productSubtotal + wgAmount - discount);
+  const total = round2(productSubtotal + shippingAmount - discount);
 
   const lineItems: AuthoritativeLineItem[] = products.map((li) => ({
     sku: li.properties.hs_sku ?? "",

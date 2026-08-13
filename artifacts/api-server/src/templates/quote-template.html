@@ -11,6 +11,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Branch · Office Furniture Quote</title>
+<link rel="icon" type="image/png" href="/logos/b.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -273,10 +274,10 @@
       <div class="summary">
         <h3>Your investment</h3>
         <div class="srow"><span class="lbl">Product subtotal</span><span id="sumProducts"></span></div>
-        <div class="srow" id="wgRow"><span class="lbl"><a href="#whiteglove">White Glove Delivery &amp; Install</a></span><span id="sumWG"></span></div>
+        <div class="srow" id="wgRow"><span class="lbl">Shipping &amp; Delivery</span><span id="sumWG"></span></div>
         <div class="srow discount" id="discountRow" style="display:none"><span class="lbl">Discount</span><span id="sumDiscount"></span></div>
         <div class="srow"><span class="lbl" id="taxLabel">Tax</span><span id="sumTax"></span></div>
-        <div class="srow total"><span>Total</span><span id="sumTotal"></span></div>
+        <div class="srow total"><span>Pre-Tax Total</span><span id="sumTotal"></span></div>
         <div class="invbanner" id="invBanner"><strong>Availability check needed.</strong> You've adjusted quantities from the original quote. We'll confirm stock and delivery timeline before final pricing, usually within one business day.</div>
         <button class="cta primary" id="acceptBtn" onclick="openModal()">Accept this quote</button>
         <a class="cta secondary" id="changesLink" href="#">Request changes</a>
@@ -358,10 +359,11 @@
           <div class="trusted-bar">
             <div class="trusted-label">Trusted by</div>
             <div class="trusted-logos">
-              <img src="/logos/tonal.png" alt="Tonal" loading="lazy">
               <img src="/logos/casper.png" alt="Casper" loading="lazy">
+              <img src="/logos/tumblr.png" alt="tumblr" loading="lazy">
               <img src="/logos/squarefoot.png" alt="SquareFoot" loading="lazy">
-              <img src="/logos/banza.webp" alt="Banza" loading="lazy">
+              <img src="/logos/banza.png" alt="Banza" loading="lazy">
+              <img src="/logos/techstars.png" alt="techstars" loading="lazy">
             </div>
           </div>
           <div class="reviews-grid">
@@ -630,10 +632,24 @@ function thumbHTML(it){
     : `<div class="thumb">${inner}</div>`;
 }
 
+// Shipping & Delivery line items (by SKU or name) are pulled out of the product
+// rows/subtotal and rolled into a single "Shipping & Delivery" summary line.
+const SHIPPING_SKUS = [
+  "white glove delivery",
+  "free shipping",
+  "expedited shipping",
+  "stair carry surcharge",
+  "after hours surcharge",
+  "freight shipping",
+  "union labor surcharge",
+];
+function norm(s){ return (s||"").trim().toLowerCase(); }
+function isShipping(i){ return SHIPPING_SKUS.includes(norm(i.sku)) || SHIPPING_SKUS.includes(norm(i.name)); }
 const WG_SKU = "White Glove Delivery";
 function isWG(i){ return (i.sku||"") === WG_SKU || /white glove/i.test(i.name||""); }
-function productItems(){ return Q.items.filter(i => !isWG(i)); }  // rows + subtotal exclude WG
-function wgItem(){ return Q.items.find(isWG); }                    // WG shown as its own summary line
+function productItems(){ return Q.items.filter(i => !isShipping(i)); } // rows + subtotal exclude all shipping/delivery
+function shippingItems(){ return Q.items.filter(isShipping); }         // rolled into the Shipping & Delivery line
+function wgItem(){ return Q.items.find(isWG); }                        // White Glove specifically (drives the explainer)
 
 function movedTooFar(it){
   return Math.abs(it.qty - it.orig) > Math.max(2, Math.round(0.2 * it.orig));
@@ -641,7 +657,7 @@ function movedTooFar(it){
 function needsInvCheck(){ return productItems().some(movedTooFar); }
 
 function renderItems(){
-  document.getElementById("itemRows").innerHTML = Q.items.map((it,idx)=>({it,idx})).filter(x=>!isWG(x.it)).map(({it,idx})=>{
+  document.getElementById("itemRows").innerHTML = Q.items.map((it,idx)=>({it,idx})).filter(x=>!isShipping(x.it)).map(({it,idx})=>{
     const moved = movedTooFar(it);
     const nameHTML = it.productUrl
       ? `<a href="${esc(it.productUrl)}" target="_blank" rel="noopener">${esc(it.name)}</a>`
@@ -691,23 +707,17 @@ function calc(){
   const discount = hasLineDisc
     ? prods.reduce((s,i)=> s + Math.round((i.disc||0)*i.qty*100)/100, 0)
     : (Q.rates.discount || 0);
-  const edited = needsAnyEdit();
-  const wgLine = wgItem();
+  // Shipping & Delivery is a FLAT charge — the sum of the shipping/delivery
+  // line items (fixed at their own quantities), or the server-provided amount.
+  // It never scales when the client adjusts product quantities.
+  const ships = shippingItems();
+  const shipping = ships.length
+    ? ships.reduce((s,i)=> s + Math.round(i.price * i.qty * 100)/100, 0)
+    : (Q.rates.shippingAmount || 0);
 
-  // White Glove is a FLAT delivery charge — it is fixed at the quoted amount
-  // (the WG line item if present, else the quoted wgAmount) and never scales
-  // when the client adjusts product quantities.
-  const wg = wgLine
-    ? Math.round(wgLine.price * wgLine.qty * 100) / 100
-    : (Q.rates.wgAmount || 0);
-
-  // Tax may legitimately change with order size; recompute it from the quoted
-  // rate when quantities are edited, otherwise show the quoted amount verbatim.
-  const preTax = Math.round((products + wg - discount)*100)/100;
-  const tax = edited
-    ? Math.round(preTax * Q.rates.taxRate * 100)/100
-    : (Q.rates.taxAmount || 0);
-  return {products, wg, discount, preTax, tax, total: Math.round((preTax+tax)*100)/100};
+  // Tax is calculated at checkout for now, so the headline total is pre-tax.
+  const preTax = Math.round((products + shipping - discount)*100)/100;
+  return {products, shipping, discount, preTax, total: preTax};
 }
 // any line qty differs from the quoted qty (drives verbatim-vs-recompute)
 function needsAnyEdit(){ return productItems().some(i => i.qty !== i.orig); }
@@ -715,14 +725,14 @@ function needsAnyEdit(){ return productItems().some(i => i.qty !== i.orig); }
 function renderSummary(){
   const c = calc();
   document.getElementById("sumProducts").textContent = fmtFixed(c.products);
-  document.getElementById("sumWG").textContent  = fmt(c.wg);
+  document.getElementById("sumWG").textContent  = fmt(c.shipping);
   const dRow = document.getElementById("discountRow");
   if(c.discount > 0){
     dRow.style.display = "flex";
     document.getElementById("sumDiscount").textContent = "-" + fmt(c.discount);
   } else dRow.style.display = "none";
-  document.getElementById("taxLabel").textContent = Q.rates.taxLabel || "Tax";
-  document.getElementById("sumTax").textContent = fmt(c.tax);
+  document.getElementById("taxLabel").textContent = "Tax";
+  document.getElementById("sumTax").textContent = "Calculated at Checkout";
   document.getElementById("sumTotal").textContent = fmt(c.total);
   document.getElementById("barTotal").textContent = fmt(c.total);
 
@@ -744,7 +754,7 @@ function setQty(idx,v){ const i=Q.items[idx]; i.qty=Math.max(0,Math.min(99,parse
 function openModal(){
   const c = calc();
   document.getElementById("modalTitle").textContent = needsInvCheck() ? "Accept with availability check" : "Accept this quote?";
-  document.getElementById("modalTotal").textContent = `Total: ${fmt(c.total)} (incl. White Glove Delivery & tax)`;
+  document.getElementById("modalTotal").textContent = `Pre-Tax Total: ${fmt(c.total)} (incl. Shipping & Delivery; tax calculated at checkout)`;
   const invNote = document.getElementById("modalInvNote");
   if(needsInvCheck()){
     const changed = Q.items.filter(movedTooFar).map(i=>`${i.name} (${i.orig} → ${i.qty})`).join(", ");
@@ -810,11 +820,16 @@ function showAccepted(){
 
 /* ---------- Conditional sections: White Glove + Floorplan ---------- */
 function applyConditionalSections(){
-  // White Glove only appears when the deal has a White Glove line item
-  // (or a quoted WG amount / explicit flag on older payloads).
-  const hasWG = !!wgItem() || Q.hasWhiteGlove === true || (Q.rates && Q.rates.wgAmount > 0);
+  // The Shipping & Delivery summary row appears whenever the deal has any
+  // shipping/delivery line item (including a $0 Free Shipping line).
+  const hasShipping = shippingItems().length > 0 || Q.hasShipping === true;
+  if(!hasShipping){
+    const row = document.getElementById("wgRow"); if(row) row.style.display = "none";
+  }
+  // The White Glove explainer section appears only when White Glove is present.
+  const hasWG = !!wgItem() || Q.hasWhiteGlove === true;
   if(!hasWG){
-    ["wgRow","whiteglove"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
+    ["whiteglove"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
     const link=document.getElementById("wgFineLink"); if(link) link.style.display="none";
   }
   // Floorplan only appears when the deal has a floorplan file.
