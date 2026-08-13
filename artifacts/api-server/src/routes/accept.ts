@@ -20,7 +20,7 @@
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, eq, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, isNull, isNotNull, lt } from "drizzle-orm";
 import {
   validateDealTokenAndStatus,
   fetchDealDataForAcceptance,
@@ -194,20 +194,19 @@ router.post("/q/:dealId/accept", async (req: Request, res: Response) => {
     //    data (total + line items) from the deal's own line items so the audit
     //    note is built from HubSpot's own records rather than client-supplied
     //    figures that could be tampered with.
-    const [validated, authoritative] = await Promise.all([
+    const [, authoritative] = await Promise.all([
       validateDealTokenAndStatus(dealId, body.token),
       fetchDealDataForAcceptance(dealId),
     ]);
     const authorizedDealId = dealId;
+    const contentUpdatedAt = authoritative.contentUpdatedAt;
 
-    // ── 1a. Fast serial-replay pre-check ────────────────────────────────────
-    //    If the deal already sits in the accepted stage we can return 409
-    //    immediately without touching the database or performing any writes.
-    if (validated.alreadyAccepted) {
-      logger.warn({ dealId }, "Replay attempt on already-accepted deal (already in accepted stage)");
-      res.status(409).json({ error: "This quote has already been accepted." });
-      return;
-    }
+    // ── 1a. Replay vs. re-accept ────────────────────────────────────────────
+    //    Replay protection is enforced by the DB claim below: a completed
+    //    acceptance blocks re-submission UNLESS the quote's line items were
+    //    edited after it was accepted (a legitimate re-accept), in which case
+    //    the stale acceptance row is cleared so the signer can accept the
+    //    updated quote.
 
     // ── 1b. Derive availabilityCheck server-side ────────────────────────────
     //    Compare client-submitted quantities against HubSpot's authoritative
@@ -238,6 +237,22 @@ router.post("/q/:dealId/accept", async (req: Request, res: Response) => {
     let claimInserted = false;
     try {
       await db.transaction(async (tx) => {
+        // Clear a completed acceptance whose content is now stale — the deal's
+        // line items were edited after it was accepted — so the signer can
+        // re-accept the updated quote. Genuine replays (no edit since
+        // acceptance) leave the completed row in place and hit the conflict below.
+        if (contentUpdatedAt) {
+          await tx
+            .delete(quoteAcceptancesTable)
+            .where(
+              and(
+                eq(quoteAcceptancesTable.quoteId, dealId),
+                isNotNull(quoteAcceptancesTable.completedAt),
+                lt(quoteAcceptancesTable.completedAt, contentUpdatedAt),
+              ),
+            );
+        }
+
         // Remove any expired uncompleted claim so the signer can retry after a
         // prior request crashed or timed out before releasing.
         const leaseExpiry = new Date(Date.now() - CLAIM_LEASE_MS);

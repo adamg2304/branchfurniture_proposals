@@ -273,6 +273,7 @@
       </div>
       <div class="summary">
         <h3>Your investment</h3>
+        <div id="reacceptBanner" style="display:none;background:#8a5a2e;color:#fff;padding:12px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;line-height:1.45"><strong>Quote updated.</strong> This quote changed since it was last accepted. Please review the items and accept again.</div>
         <div class="srow"><span class="lbl">Product subtotal</span><span id="sumProducts"></span></div>
         <div class="srow" id="wgRow"><span class="lbl">Shipping &amp; Delivery</span><span id="sumWG"></span></div>
         <div class="srow discount" id="discountRow" style="display:none"><span class="lbl">Discount</span><span id="sumDiscount"></span></div>
@@ -869,6 +870,11 @@ function applyConditionalSections(){
    stage), swap the accept/request actions for an "accepted" confirmation and
    a soft add-on prompt, and hide the sticky accept bar. */
 function applyAcceptedState(){
+  // Quote edited after a prior acceptance: prompt a re-accept (accept actions
+  // stay visible because the server sets accepted=false in this case).
+  if(Q.changedSinceAcceptance){
+    const b=document.getElementById("reacceptBanner"); if(b) b.style.display="block";
+  }
   if(!Q.accepted) return;
   ["acceptBtn","changesLink","acceptFine","invBanner"].forEach(id=>{
     const el=document.getElementById(id); if(el) el.style.display="none";

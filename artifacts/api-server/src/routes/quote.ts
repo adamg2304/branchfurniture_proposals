@@ -19,8 +19,37 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { eq } from "drizzle-orm";
 import { fetchDealQuote, TokenMismatchError, type QuotePayload } from "../lib/hubspot.js";
 import { logger } from "../lib/logger.js";
+import { db, quoteAcceptancesTable } from "@workspace/db";
+
+/**
+ * If a quote was accepted via the portal but a line item has been modified in
+ * HubSpot since (edited/added), flip it out of the accepted state and flag it
+ * so the client shows a re-accept prompt. Best-effort — never blocks rendering.
+ */
+async function applyReacceptCheck(dealId: string, payload: QuotePayload): Promise<void> {
+  try {
+    if (!payload.meta.itemsUpdated) return;
+    const rows = await db
+      .select()
+      .from(quoteAcceptancesTable)
+      .where(eq(quoteAcceptancesTable.quoteId, dealId))
+      .limit(1);
+    const completedAt = rows[0]?.completedAt;
+    if (!completedAt) return;
+    const changed = new Date(payload.meta.itemsUpdated).getTime() > new Date(completedAt).getTime();
+    if (changed) {
+      payload.accepted = false;
+      payload.changedSinceAcceptance = true;
+    } else {
+      payload.accepted = true;
+    }
+  } catch (err) {
+    logger.warn({ err, dealId }, "Re-accept check skipped (DB unavailable)");
+  }
+}
 
 /**
  * Serialize a value to JSON that is safe to embed inside an HTML <script> block.
@@ -103,6 +132,7 @@ router.get("/q/:slug", async (req: Request, res: Response) => {
       fetchDealQuote(dealId, urlToken),
     ]);
 
+    await applyReacceptCheck(dealId, payload);
     const html = injectQuote(template, payload);
 
     res

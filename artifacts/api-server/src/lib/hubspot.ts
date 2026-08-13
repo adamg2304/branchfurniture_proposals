@@ -81,6 +81,7 @@ interface LineItemProperties {
   hs_total_discount?: string | null;
   hs_line_item_currency_code?: string | null;
   recurringbillingfrequency?: string | null;
+  hs_lastmodifieddate?: string | null;
 }
 
 interface DealProperties {
@@ -303,10 +304,12 @@ export interface QuotePayload {
     token: string;
     created: string;
     expires: string;
+    itemsUpdated: string;
     acceptUrl: string;
     floorplanUrl: string;
   };
   accepted: boolean;
+  changedSinceAcceptance: boolean;
   hasWhiteGlove: boolean;
   hasShipping: boolean;
   rates: {
@@ -442,6 +445,8 @@ export interface AuthoritativeQuoteData {
   /** Server-computed total from hs_quote_amount (already includes tax/discount). */
   total: number;
   lineItems: AuthoritativeLineItem[];
+  /** Most recent line-item modification time, for detecting post-acceptance edits. */
+  contentUpdatedAt: Date | null;
 }
 
 /**
@@ -469,7 +474,7 @@ export async function fetchQuoteDataForAcceptance(
 
   const lineItemIds = lineItemAssocs.results.map((r) => String(r.toObjectId));
   if (lineItemIds.length === 0) {
-    return { total, lineItems: [] };
+    return { total, lineItems: [], contentUpdatedAt: null };
   }
 
   const batch = await hs<HsBatchResult<LineItemProperties>>(
@@ -492,7 +497,7 @@ export async function fetchQuoteDataForAcceptance(
       price: parseNum(li.properties.price),
     }));
 
-  return { total, lineItems };
+  return { total, lineItems, contentUpdatedAt: null };
 }
 
 /**
@@ -511,8 +516,12 @@ export async function fetchDealQuote(
 ): Promise<QuotePayload> {
   // 1. Fetch the deal first — we need hub_quote_link to validate the token
   //    before doing any further work, plus owner/name/floorplan/dates.
-  const deal = await hs<HsObject<DealProperties>>(
-    `/crm/v3/objects/deals/${dealId}?properties=hubspot_owner_id,dealname,floorplan,hub_quote_link,dealstage,createdate,closedate`,
+  //    hs_date_entered_<QuoteSentStage> is when the quote was sent (used as the
+  //    quote's "created" date).
+  const quoteSentStage = process.env["QUOTE_SENT_STAGE_ID"] || "1523817";
+  const enteredSentProp = `hs_date_entered_${quoteSentStage}`;
+  const deal = await hs<HsObject<DealProperties & Record<string, string | null | undefined>>>(
+    `/crm/v3/objects/deals/${dealId}?properties=hubspot_owner_id,dealname,floorplan,hub_quote_link,dealstage,createdate,closedate,${enteredSentProp}`,
   );
 
   // Token validation — only for the public tokenized link.
@@ -535,7 +544,7 @@ export async function fetchDealQuote(
   const companyId = String(companyAssocs.results[0]?.toObjectId ?? "");
   const ownerId = deal.properties.hubspot_owner_id ?? "";
 
-  const liProps = ["name", "quantity", "price", "amount", "hs_sku", "description", "hs_url", "hs_images", "hub_image", "hs_total_discount"];
+  const liProps = ["name", "quantity", "price", "amount", "hs_sku", "description", "hs_url", "hs_images", "hub_image", "hs_total_discount", "hs_lastmodifieddate"];
 
   const [lineItemsBatch, contactRes, companyRes, ownerRes, floorplanUrl] = await Promise.all([
     lineItemIds.length > 0
@@ -620,6 +629,21 @@ export async function fetchDealQuote(
     return { name: p.name ?? "", spec: p.description ?? "", sku: p.hs_sku ?? "", price, disc, qty, orig: qty, imageUrl, productUrl: p.hs_url ?? "" };
   });
 
+  // Quote validity: "created" is when the deal entered Quote Sent (when the
+  // quote went out), falling back to the deal's create date; it expires
+  // QUOTE_VALIDITY_DAYS (default 30) later. itemsUpdated is the most recent
+  // line-item modification time, used to detect edits made after acceptance.
+  const validityDays = Number(process.env["QUOTE_VALIDITY_DAYS"]) || 30;
+  const dealProps = deal.properties as Record<string, string | null | undefined>;
+  const sentRaw = dealProps[enteredSentProp] || deal.properties.createdate || "";
+  const createdMs = sentRaw ? new Date(sentRaw).getTime() : Date.now();
+  const expiresMs = createdMs + validityDays * 24 * 60 * 60 * 1000;
+  const itemsUpdated = allLineItems
+    .map((li) => li.properties.hs_lastmodifieddate || "")
+    .filter(Boolean)
+    .sort()
+    .pop() || "";
+
   return {
     customer: { company: company.name ?? "", location: companyLocation, contactName, contactTitle: contact.jobtitle ?? "", contactEmail: contact.email ?? "" },
     rep: { name: repName, title: "Account Executive", email: owner?.email ?? "", phone: "" },
@@ -628,12 +652,14 @@ export async function fetchDealQuote(
       quoteId: dealId,
       dealId,
       token: urlToken ?? "",
-      created: toDateString(deal.properties.createdate),
-      expires: toDateString(deal.properties.closedate),
+      created: toDateString(new Date(createdMs).toISOString()),
+      expires: toDateString(new Date(expiresMs).toISOString()),
+      itemsUpdated,
       acceptUrl: `/api/q/${dealId}/accept`,
       floorplanUrl,
     },
     accepted: deal.properties.dealstage === (process.env["ACCEPTED_DEAL_STAGE_ID"] || "1492994"),
+    changedSinceAcceptance: false,
     hasWhiteGlove: Boolean(wgItem),
     hasShipping: shippingLineItems.length > 0,
     rates: { wgAmount: round2(wgAmount), wgRate: round6(shippingRate), shippingAmount: round2(shippingAmount), otherShippingAmount: round2(otherShippingAmount), discount: round2(discount), taxAmount: round2(taxAmount), taxRate: round6(taxRate), taxLabel },
@@ -705,7 +731,7 @@ async function fetchQuotePayloadInternal(
     throw new Error(`No deal associated with quote ${quoteId}`);
   }
 
-  const liProps = ["name", "quantity", "price", "amount", "hs_sku", "description", "hs_url", "hs_images", "hub_image", "hs_total_discount"];
+  const liProps = ["name", "quantity", "price", "amount", "hs_sku", "description", "hs_url", "hs_images", "hub_image", "hs_total_discount", "hs_lastmodifieddate"];
 
   const [lineItemsBatch, deal] = await Promise.all([
     lineItemIds.length > 0
@@ -795,10 +821,12 @@ async function fetchQuotePayloadInternal(
       token: urlToken ?? "",
       created: toDateString(quote.properties.hs_createdate),
       expires: toDateString(quote.properties.hs_expiration_date),
+      itemsUpdated: "",
       acceptUrl: `/api/q/${quoteId}/accept`,
       floorplanUrl: await resolveFileUrl(deal.properties.floorplan ?? ""),
     },
     accepted: false,
+    changedSinceAcceptance: false,
     hasWhiteGlove: Boolean(wgItem),
     hasShipping: Boolean(wgItem),
     rates: { wgAmount: round2(wgAmount), wgRate: round6(wgRate), shippingAmount: round2(wgAmount), otherShippingAmount: 0, discount: round2(discount), taxAmount: round2(taxAmount), taxRate: round6(taxRate), taxLabel },
@@ -871,7 +899,7 @@ export async function fetchDealDataForAcceptance(
   );
   const ids = assoc.results.map((r) => String(r.toObjectId));
   if (ids.length === 0) {
-    return { total: 0, lineItems: [] };
+    return { total: 0, lineItems: [], contentUpdatedAt: null };
   }
 
   const batch = await hs<HsBatchResult<LineItemProperties>>(
@@ -880,7 +908,7 @@ export async function fetchDealDataForAcceptance(
       method: "POST",
       body: JSON.stringify({
         inputs: ids.map((id) => ({ id })),
-        properties: ["name", "quantity", "price", "hs_sku", "amount", "hs_total_discount"],
+        properties: ["name", "quantity", "price", "hs_sku", "amount", "hs_total_discount", "hs_lastmodifieddate"],
       }),
     },
   );
@@ -903,7 +931,14 @@ export async function fetchDealDataForAcceptance(
     price: parseNum(li.properties.price),
   }));
 
-  return { total, lineItems };
+  const latest = all
+    .map((li) => li.properties.hs_lastmodifieddate || "")
+    .filter(Boolean)
+    .sort()
+    .pop();
+  const contentUpdatedAt = latest ? new Date(latest) : null;
+
+  return { total, lineItems, contentUpdatedAt };
 }
 
 /**
