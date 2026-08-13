@@ -120,12 +120,15 @@ const quoteAcceptLimiter = rateLimit({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Alias for the HubSpot developer-project webhook target URL. The project is
-// configured to POST deal-stage changes to /webhooks/deal-stage; this routes
-// that path to the same handler as /api/hubspot/webhook. (artifact.toml also
-// routes the /webhooks prefix to this service.) Secret-gated like the canonical
-// endpoint — the target URL must include ?secret=<PROVISION_SECRET>.
+// Alias for the HubSpot developer-project webhook target URL. The project posts
+// deal-stage changes to /webhooks/deal-stage; this routes that path to the same
+// handler as /api/hubspot/webhook. (artifact.toml also routes the /webhooks
+// prefix to this service.) Secret-gated like the canonical endpoint; the secret
+// may be supplied as a query param, header, OR trailing path segment
+// (/webhooks/deal-stage/<secret>) so the webhook target URL needs no query
+// string.
 app.post("/webhooks/deal-stage", hubspotWebhookHandler);
+app.post("/webhooks/deal-stage/:secret", hubspotWebhookHandler);
 
 // Attach rate limiters before the main router so they run on every matching
 // request regardless of middleware order inside the router.

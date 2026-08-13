@@ -25,7 +25,8 @@ const router: IRouter = Router();
 function suppliedSecret(req: Request): string {
   const header = req.get("x-provision-secret") ?? "";
   const query = typeof req.query["secret"] === "string" ? (req.query["secret"] as string) : "";
-  return header || query;
+  const param = typeof req.params["secret"] === "string" ? req.params["secret"] : "";
+  return header || query || param;
 }
 
 function extractDealId(req: Request): string {
