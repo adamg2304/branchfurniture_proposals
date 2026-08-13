@@ -911,9 +911,12 @@ export async function fetchDealDataForAcceptance(
  *
  * Generates an unguessable token, writes `hub_quote_link =
  * {PUBLIC_BASE_URL}/api/q/{dealId}-{token}` onto the deal, and returns it.
- * Idempotent: if the deal already has a link pointing at its own tokenized
- * route it is kept (so re-enrolling a deal in the workflow does not rotate a
- * link that may already be shared) — pass `force` to regenerate.
+ * Idempotent: if the deal already has a link on the CURRENT base pointing at
+ * its own tokenized route it is kept (so re-enrolling a deal in the workflow
+ * does not rotate a link that may already be shared) — pass `force` to
+ * regenerate. If a link exists on a DIFFERENT base (e.g. a deal provisioned on
+ * the old Replit URL), the same token is preserved and only the base is
+ * swapped, so migrating domains does not invalidate the token.
  *
  * This is what the "deal entered Quote Sent" HubSpot workflow calls.
  */
@@ -921,20 +924,23 @@ export async function provisionDealQuoteLink(
   dealId: string,
   opts: { force?: boolean } = {},
 ): Promise<{ url: string; created: boolean }> {
-  const base = (process.env["PUBLIC_BASE_URL"] || "https://cloud-quote-link.replit.app").replace(/\/$/, "");
+  const base = (process.env["PUBLIC_BASE_URL"] || "https://quotes.branchfurniture.com").replace(/\/$/, "");
 
   const deal = await hs<HsObject<Pick<DealProperties, "hub_quote_link">>>(
     `/crm/v3/objects/deals/${dealId}?properties=hub_quote_link`,
   );
   const existingLink = (deal.properties.hub_quote_link ?? "").trim();
   const existingToken = extractStoredToken(existingLink);
+  const expectedPrefix = `${base}/api/q/${dealId}-`;
 
-  // Reuse an already-provisioned link (points at THIS deal's tokenized route).
-  if (!opts.force && existingToken && existingLink.includes(`/api/q/${dealId}-`)) {
+  // Reuse an already-provisioned link that is already on the current base.
+  if (!opts.force && existingToken && existingLink.startsWith(expectedPrefix)) {
     return { url: existingLink, created: false };
   }
 
-  const tok = randomBytes(20).toString("hex");
+  // Preserve the existing token when only the base is changing (domain
+  // migration); otherwise mint a fresh one.
+  const tok = (!opts.force && existingToken) ? existingToken : randomBytes(20).toString("hex");
   const url = `${base}/api/q/${dealId}-${tok}`;
   await hs<unknown>(`/crm/v3/objects/deals/${dealId}`, {
     method: "PATCH",
