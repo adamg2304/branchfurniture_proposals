@@ -42,8 +42,10 @@ window.QUOTE = {
     dealId: "SAMPLE-DEAL",
     token: "SAMPLETOKEN",
     status: "Sent",
-    created: "2026-07-14",
-    expires: "2026-08-13",
+    created: "2026-08-11",
+    expires: "2026-08-18",   // 7-day validity window
+    itemsUpdated: "2026-08-11T00:00:00Z",
+    deliveryMethod: "White Glove Delivery & Installation",
     nextStep: "Review quote and confirm quantities",
     acceptUrl: "/api/q/41421676299/accept",
     floorplanUrl: "/floorplan-sample.svg"   // dev placeholder; live quotes resolve the deal's floorplan file

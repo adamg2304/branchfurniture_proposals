@@ -239,6 +239,22 @@ function isShippingItem(
   return SHIPPING_SKUS.has(s) || SHIPPING_SKUS.has(n) || isWhiteGlove(name);
 }
 
+/**
+ * Plain-language delivery method for the customer, derived from the shipping
+ * line items present. White Glove and freight are called out explicitly; any
+ * other shipping line (free/expedited/standard) reads as parcel.
+ */
+function deliveryMethodLabel(shippingLineItems: HsObject<LineItemProperties>[]): string {
+  const has = (kw: string) =>
+    shippingLineItems.some((li) =>
+      `${li.properties.name ?? ""} ${li.properties.hs_sku ?? ""}`.toLowerCase().includes(kw),
+    );
+  if (has("white glove")) return "White Glove Delivery & Installation";
+  if (has("freight")) return "Freight Delivery";
+  if (shippingLineItems.length > 0) return "Parcel Shipping";
+  return "";
+}
+
 /** Amount of a shipping/delivery line item: prefer `amount`, else price×qty. */
 function shippingLineAmount(li: HsObject<LineItemProperties>): number {
   const amt = parseNum(li.properties.amount);
@@ -317,6 +333,7 @@ export interface QuotePayload {
     created: string;
     expires: string;
     itemsUpdated: string;
+    deliveryMethod: string;
     acceptUrl: string;
     floorplanUrl: string;
   };
@@ -645,7 +662,7 @@ export async function fetchDealQuote(
   // quote went out), falling back to the deal's create date; it expires
   // QUOTE_VALIDITY_DAYS (default 30) later. itemsUpdated is the most recent
   // line-item modification time, used to detect edits made after acceptance.
-  const validityDays = Number(process.env["QUOTE_VALIDITY_DAYS"]) || 30;
+  const validityDays = Number(process.env["QUOTE_VALIDITY_DAYS"]) || 7;
   const dealProps = deal.properties as Record<string, string | null | undefined>;
   const sentRaw = dealProps[enteredSentProp] || deal.properties.createdate || "";
   const createdMs = sentRaw ? new Date(sentRaw).getTime() : Date.now();
@@ -667,6 +684,7 @@ export async function fetchDealQuote(
       created: toDateString(new Date(createdMs).toISOString()),
       expires: toDateString(new Date(expiresMs).toISOString()),
       itemsUpdated,
+      deliveryMethod: deliveryMethodLabel(shippingLineItems),
       acceptUrl: `/api/q/${dealId}/accept`,
       floorplanUrl,
     },
@@ -834,6 +852,7 @@ async function fetchQuotePayloadInternal(
       created: toDateString(quote.properties.hs_createdate),
       expires: toDateString(quote.properties.hs_expiration_date),
       itemsUpdated: "",
+      deliveryMethod: "",
       acceptUrl: `/api/q/${quoteId}/accept`,
       floorplanUrl: await resolveFileUrl(deal.properties.floorplan ?? ""),
     },
