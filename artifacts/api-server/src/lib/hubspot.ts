@@ -312,6 +312,7 @@ export interface QuotePayload {
     wgAmount: number;
     wgRate: number;
     shippingAmount: number;
+    otherShippingAmount: number;
     discount: number;
     taxAmount: number;
     taxRate: number;
@@ -581,9 +582,16 @@ export async function fetchDealQuote(
   // on the Product, not copied onto each line item.
   const productImages = await fetchProductImagesBySku(productItems.map((li) => li.properties.hs_sku));
 
-  // Shipping & Delivery: the summed amount of all shipping/delivery line items
-  // (White Glove, freight, surcharges, etc.). Shown as one summary line.
-  const shippingAmount = shippingLineItems.reduce((sum, li) => sum + shippingLineAmount(li), 0);
+  // Shipping & Delivery splits into two parts so the client can scale the
+  // White Glove portion with the live order (max($200 + 15% of products,
+  // quoted amount)) while other shipping/delivery surcharges stay flat.
+  const wgAmount = shippingLineItems
+    .filter((li) => isWhiteGlove(li.properties.name))
+    .reduce((sum, li) => sum + shippingLineAmount(li), 0);
+  const otherShippingAmount = shippingLineItems
+    .filter((li) => !isWhiteGlove(li.properties.name))
+    .reduce((sum, li) => sum + shippingLineAmount(li), 0);
+  const shippingAmount = wgAmount + otherShippingAmount;
   const productSubtotal = productItems.reduce(
     (sum, li) => sum + parseNum(li.properties.price) * parseNum(li.properties.quantity), 0,
   );
@@ -626,7 +634,7 @@ export async function fetchDealQuote(
     },
     hasWhiteGlove: Boolean(wgItem),
     hasShipping: shippingLineItems.length > 0,
-    rates: { wgAmount: round2(shippingAmount), wgRate: round6(shippingRate), shippingAmount: round2(shippingAmount), discount: round2(discount), taxAmount: round2(taxAmount), taxRate: round6(taxRate), taxLabel },
+    rates: { wgAmount: round2(wgAmount), wgRate: round6(shippingRate), shippingAmount: round2(shippingAmount), otherShippingAmount: round2(otherShippingAmount), discount: round2(discount), taxAmount: round2(taxAmount), taxRate: round6(taxRate), taxLabel },
     items,
   };
 }
@@ -790,7 +798,7 @@ async function fetchQuotePayloadInternal(
     },
     hasWhiteGlove: Boolean(wgItem),
     hasShipping: Boolean(wgItem),
-    rates: { wgAmount: round2(wgAmount), wgRate: round6(wgRate), shippingAmount: round2(wgAmount), discount: round2(discount), taxAmount: round2(taxAmount), taxRate: round6(taxRate), taxLabel },
+    rates: { wgAmount: round2(wgAmount), wgRate: round6(wgRate), shippingAmount: round2(wgAmount), otherShippingAmount: 0, discount: round2(discount), taxAmount: round2(taxAmount), taxRate: round6(taxRate), taxLabel },
     items,
   };
 }

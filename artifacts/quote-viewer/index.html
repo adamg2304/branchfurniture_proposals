@@ -707,17 +707,30 @@ function calc(){
   const discount = hasLineDisc
     ? prods.reduce((s,i)=> s + Math.round((i.disc||0)*i.qty*100)/100, 0)
     : (Q.rates.discount || 0);
-  // Shipping & Delivery is a FLAT charge — the sum of the shipping/delivery
-  // line items (fixed at their own quantities), or the server-provided amount.
-  // It never scales when the client adjusts product quantities.
+  // Shipping & Delivery = White Glove + any flat shipping/delivery surcharges.
+  // White Glove is priced as a percentage of the order: max($200 + 15% of the
+  // product subtotal, the quoted amount). The quoted amount is a floor so it
+  // never drops below what was quoted, and it grows with the order so a large
+  // add-on isn't delivered for the base fee. Other shipping items stay flat.
+  const WG_BASE = 200, WG_RATE = 0.15;
   const ships = shippingItems();
-  const shipping = ships.length
-    ? ships.reduce((s,i)=> s + Math.round(i.price * i.qty * 100)/100, 0)
-    : (Q.rates.shippingAmount || 0);
+  let wgQuoted, otherShip;
+  if (ships.length) {
+    wgQuoted  = ships.filter(isWG).reduce((s,i)=> s + Math.round(i.price*i.qty*100)/100, 0);
+    otherShip = ships.filter(i=>!isWG(i)).reduce((s,i)=> s + Math.round(i.price*i.qty*100)/100, 0);
+  } else {
+    wgQuoted  = Q.rates.wgAmount || 0;
+    otherShip = Q.rates.otherShippingAmount || 0;
+  }
+  const hasWG = wgQuoted > 0 || ships.some(isWG) || Q.hasWhiteGlove === true;
+  const wgLive = hasWG
+    ? Math.max(Math.round((WG_BASE + WG_RATE * products) * 100)/100, wgQuoted)
+    : 0;
+  const shipping = Math.round((wgLive + otherShip) * 100)/100;
 
   // Tax is calculated at checkout for now, so the headline total is pre-tax.
   const preTax = Math.round((products + shipping - discount)*100)/100;
-  return {products, shipping, discount, preTax, total: preTax};
+  return {products, shipping, wgLive, otherShip, discount, preTax, total: preTax};
 }
 // any line qty differs from the quoted qty (drives verbatim-vs-recompute)
 function needsAnyEdit(){ return productItems().some(i => i.qty !== i.orig); }
