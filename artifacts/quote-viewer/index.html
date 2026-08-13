@@ -370,25 +370,7 @@
   <div class="wrap">
     <div class="brand-tiles">
 
-      <!-- 1. Our Story -->
-      <div class="info-tile">
-        <div class="story-inner">
-          <div class="tile-kicker">About Branch</div>
-          <h2 class="tile-headline">Hi, we're Branch,<br>and this is our story.</h2>
-          <div class="story-cols">
-            <div>
-              <p>After furnishing dozens of offices for a commercial real estate startup, our CEO Greg Hayes realized the average office furniture company falls into one of two categories: high quality, but expensive and slow, or affordable and fast but lacking in quality and service.</p>
-              <p style="margin-top:14px">There wasn't a great option for individuals and teams who wanted to furnish an inspiring office without taking forever or breaking the bank.</p>
-            </div>
-            <div>
-              <p>That's why we founded Branch: to make it easy for people and teams to create inspiring offices. We sell direct, so our collection costs half as much as premium furniture of comparable quality, and we design our products with your well-being and work day in mind.</p>
-              <p style="margin-top:14px">We provide end-to-end services: design, delivery, white glove installation, and even the ability to trade in used furniture when you move or grow. We believe it's a better approach to the way we work today.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 2. Social Proof / Reviews -->
+      <!-- Social Proof / Reviews -->
       <div class="info-tile">
         <div class="social-inner">
           <h2 class="tile-headline">Redefining service in office furniture<br>across hundreds of enterprise customers.</h2>
@@ -592,6 +574,7 @@
   <div class="modal">
     <div id="modalForm">
       <h3 id="modalTitle">Accept this quote?</h3>
+      <p id="modalPreparedFor" style="font-size:14px;color:var(--muted);margin-top:2px"></p>
       <p id="modalTotal"></p>
       <div class="invnote" id="modalInvNote" style="display:none"></div>
       <div class="sign">
@@ -647,11 +630,11 @@ function renderHeader(){
   document.getElementById("metaRep").innerHTML =
     [esc(r.name), esc(r.title), esc(r.email), esc(r.phone)].filter(Boolean).join("<br>");
   document.getElementById("metaValidity").innerHTML =
-    "Created: " + fmtDate(m.created) + "<br>Expires: " + fmtDate(m.expires);
+    "Pricing &amp; inventory on this quote are valid until<br><strong>" + fmtDate(m.expires) + "</strong>";
 
   const days = Math.ceil((new Date(m.expires) - new Date())/(1000*60*60*24));
   const el = document.getElementById("daysLeft");
-  if(days > 0){ el.textContent = days + (days===1?" day":" days") + " left at this pricing"; }
+  if(days > 0){ el.textContent = days + (days===1?" day":" days") + " remaining"; }
   else { el.textContent = "Expired. Contact your rep to refresh"; el.style.background = "#8a3b2e"; }
 }
 
@@ -803,6 +786,7 @@ function setQty(idx,v){ const i=Q.items[idx]; i.qty=Math.max(0,Math.min(99,parse
 function openModal(){
   const c = calc();
   document.getElementById("modalTitle").textContent = needsInvCheck() ? "Accept with availability check" : "Accept this quote?";
+  document.getElementById("modalPreparedFor").textContent = Q.customer && Q.customer.contactName ? "Prepared for " + Q.customer.contactName : "";
   document.getElementById("modalTotal").textContent = `Pre-Tax Total: ${fmt(c.total)} (incl. Shipping & Delivery; tax calculated at checkout)`;
   const invNote = document.getElementById("modalInvNote");
   if(needsInvCheck()){
