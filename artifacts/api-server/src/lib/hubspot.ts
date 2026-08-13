@@ -129,6 +129,36 @@ function toDateString(isoOrDate: string | null | undefined): string {
   return d.toISOString().split("T")[0]!;
 }
 
+/**
+ * Line-item descriptions synced from Shopify carry the full marketing body
+ * (e.g. "Overview Designed exclusively for… Benefits * Premium powder-coated…").
+ * On a quote we only want a short, one-line spec — never a wall of text.
+ *
+ * This strips HTML, drops the leading "Overview" label and inline
+ * "(/products/…)" link paths, collapses whitespace, and returns the first
+ * sentence, hard-capped at ~160 characters.
+ */
+function cleanSpec(raw: string | null | undefined): string {
+  if (!raw) return "";
+  let s = String(raw)
+    .replace(/<[^>]*>/g, " ")            // strip any HTML tags
+    .replace(/\(\/[^)]*\)/g, " ")        // drop "(/products/daily-desk)" link artifacts
+    .replace(/^\s*overview[\s:—-]*/i, "") // drop leading "Overview" label
+    .replace(/\s+/g, " ")                 // collapse whitespace
+    .trim();
+  if (!s) return "";
+  // Prefer the first sentence; fall back to a hard character cap.
+  const firstSentence = s.match(/^.*?[.!?](?=\s|$)/)?.[0]?.trim();
+  if (firstSentence && firstSentence.length >= 20 && firstSentence.length <= 160) {
+    return firstSentence;
+  }
+  if (s.length <= 160) return s;
+  // Truncate on a word boundary within the cap.
+  const cut = s.slice(0, 160);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > 40 ? cut.slice(0, lastSpace) : cut).trim() + "…";
+}
+
 function parseNum(v: string | null | undefined): number {
   if (!v) return 0;
   return parseFloat(v) || 0;
@@ -655,7 +685,7 @@ export async function fetchDealQuote(
     const prodImg = productImages.get((p.hs_sku ?? "").trim());
     const hubImage = (p.hub_image ?? "").trim() || (prodImg?.hubImage ?? "");
     const imageUrl = hubImage || parseHsImages(p.hs_images) || parseHsImages(prodImg?.hsImages);
-    return { name: p.name ?? "", spec: p.description ?? "", sku: p.hs_sku ?? "", price, disc, qty, orig: qty, imageUrl, productUrl: p.hs_url ?? "" };
+    return { name: p.name ?? "", spec: cleanSpec(p.description), sku: p.hs_sku ?? "", price, disc, qty, orig: qty, imageUrl, productUrl: p.hs_url ?? "" };
   });
 
   // Quote validity: "created" is when the deal entered Quote Sent (when the
@@ -838,7 +868,7 @@ async function fetchQuotePayloadInternal(
     // hub_image (a direct URL on the line item) is the intended proposal image;
     // fall back to the Shopify hs_images array if hub_image isn't set.
     const imageUrl = p.hub_image && p.hub_image.trim() ? p.hub_image.trim() : parseHsImages(p.hs_images);
-    return { name: p.name ?? "", spec: p.description ?? "", sku: p.hs_sku ?? "", price, disc, qty, orig: qty, imageUrl, productUrl: p.hs_url ?? "" };
+    return { name: p.name ?? "", spec: cleanSpec(p.description), sku: p.hs_sku ?? "", price, disc, qty, orig: qty, imageUrl, productUrl: p.hs_url ?? "" };
   });
 
   return {
