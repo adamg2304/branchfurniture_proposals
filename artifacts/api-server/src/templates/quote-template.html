@@ -26,7 +26,6 @@
     --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{overflow-x:hidden}
   body{font-family:var(--sans);color:var(--ink);background:var(--paper);line-height:1.55}
   .wrap{max-width:1040px;margin:0 auto;padding:0 24px}
   h1,h2,h3,.brand{font-family:var(--serif)}
@@ -40,19 +39,19 @@
   .hero h1{font-size:46px;font-weight:400;margin:8px 0 6px;line-height:1.1;letter-spacing:-.01em}
   .hero .sub{font-size:17px;opacity:.85}
   .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:20px;margin-top:34px;
-        background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:22px}
+        background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:0;padding:22px}
   .meta h3{font-size:13px;text-transform:uppercase;letter-spacing:.12em;font-family:var(--sans);font-weight:600;opacity:.7;margin-bottom:6px}
   .meta p{font-size:14.5px;opacity:.95}
-  .badge{display:inline-block;background:var(--accent);color:#fff;border-radius:999px;padding:3px 12px;font-size:12.5px;font-weight:600;margin-top:6px}
+  .badge{display:inline-block;background:var(--accent);color:#fff;border-radius:0;padding:3px 12px;font-size:12.5px;font-weight:600;margin-top:6px}
 
   section{padding:52px 0}
   .section-title{font-size:30px;font-weight:400;line-height:1.12;letter-spacing:-.005em;margin-bottom:6px}
   .section-sub{color:var(--muted);margin-bottom:28px;max-width:680px}
 
-  .items{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .items{background:#fff;border:1px solid var(--line);border-radius:0;overflow:hidden}
   .item{display:grid;grid-template-columns:84px 1fr auto 156px;gap:18px;align-items:center;padding:16px 22px;border-bottom:1px solid var(--line)}
   .item:last-child{border-bottom:none}
-  .thumb{width:84px;height:84px;border-radius:10px;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--green);overflow:hidden;padding:7px}
+  .thumb{width:84px;height:84px;border-radius:0;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--green);overflow:hidden;padding:7px}
   .thumb img{width:100%;height:100%;object-fit:contain;display:block}
   .thumb a{display:block;width:100%;height:100%}
   .item .name{font-weight:600;font-size:15.5px}
@@ -61,7 +60,7 @@
   .item .spec{color:var(--muted);font-size:13px}
   .item .sku{color:var(--muted);font-size:12px;margin-top:1px;opacity:.75}
   .qtynote{font-size:12px;color:var(--amber);font-weight:600;margin-top:3px}
-  .qty{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .qty{display:flex;align-items:center;border:1px solid var(--line);border-radius:0;overflow:hidden}
   .qty button{width:32px;height:34px;border:none;background:var(--cream);font-size:17px;cursor:pointer;color:var(--green);font-weight:700}
   .qty button:hover{background:#eae5da}
   .qty input{width:44px;height:34px;border:none;text-align:center;font-size:14.5px;font-weight:600;background:#fff;padding:0;-webkit-appearance:none;-moz-appearance:textfield;appearance:textfield;line-height:34px}
@@ -72,27 +71,27 @@
 
   .summary-grid{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start}
   @media(max-width:860px){.summary-grid{grid-template-columns:1fr}}
-  .summary{background:var(--green);color:var(--cream);border-radius:14px;padding:26px;position:sticky;top:18px}
+  .summary{background:var(--green);color:var(--cream);border-radius:0;padding:26px;position:sticky;top:18px}
   .summary h3{font-size:28px;font-weight:400;margin-bottom:16px;letter-spacing:-.01em}
   .srow{display:flex;justify-content:space-between;font-size:14.5px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.14)}
   .srow.total{border-bottom:none;font-size:28px;font-weight:700;font-family:var(--serif);letter-spacing:-.01em;padding-top:16px;margin-top:2px}
   .srow.discount span:last-child{color:#c8a86a;font-weight:600}
   .srow .lbl{opacity:.85}
   .srow .lbl a{color:var(--cream);text-decoration:underline dotted;text-underline-offset:3px}
-  .cta{display:block;width:100%;text-align:center;margin-top:18px;padding:13px;border-radius:9px;font-weight:600;
+  .cta{display:block;width:100%;text-align:center;margin-top:18px;padding:13px;border-radius:0;font-weight:600;
        font-size:15px;cursor:pointer;text-decoration:none;border:none;transition:opacity .15s}
   .cta.primary{background:var(--accent);color:#fff}
   .cta.secondary{background:transparent;color:var(--cream);border:1.5px solid rgba(255,255,255,.4);margin-top:10px}
   .cta:hover{opacity:.88}
   .fine{font-size:12px;opacity:.65;margin-top:14px;line-height:1.5}
-  .invbanner{display:none;background:var(--amber-bg);border:1px solid #e3c98a;color:var(--amber);border-radius:9px;
+  .invbanner{display:none;background:var(--amber-bg);border:1px solid #e3c98a;color:var(--amber);border-radius:0;
        padding:11px 14px;font-size:13px;line-height:1.45;margin-top:16px}
   .invbanner.show{display:block}
 
   /* White glove */
   .wg-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
   @media(max-width:700px){.wg-grid{grid-template-columns:1fr}}
-  .wg-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px}
+  .wg-card{background:#fff;border:1px solid var(--line);border-radius:0;padding:24px}
   .wg-card.included{border-top:4px solid var(--green)}
   .wg-card.excluded{border-top:4px solid var(--line)}
   .wg-card h3{font-size:19px;font-weight:500;margin-bottom:12px}
@@ -103,7 +102,7 @@
   .wg-card.excluded li::before{content:"—";position:absolute;left:2px;color:var(--muted);font-weight:700}
 
   /* Single terms toggle card */
-  .terms-card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .terms-card{background:#fff;border:1px solid var(--line);border-radius:0;overflow:hidden}
   .terms-summary{display:flex;align-items:center;gap:12px;cursor:pointer;padding:22px 26px;list-style:none;user-select:none}
   .terms-summary::-webkit-details-marker{display:none}
   .terms-summary-title{font-family:var(--serif);font-size:26px;font-weight:400;color:var(--green-deep);letter-spacing:-.01em}
@@ -127,19 +126,19 @@
        box-shadow:0 -4px 18px rgba(0,0,0,.18);z-index:50}
   .stickybar .t{font-family:var(--serif);font-size:20px;font-weight:700}
   .stickybar small{display:block;font-size:11.5px;opacity:.75;font-family:var(--sans);font-weight:400}
-  .stickybar a{background:var(--accent);color:#fff;text-decoration:none;font-weight:600;padding:10px 22px;border-radius:8px;font-size:14px}
+  .stickybar a{background:var(--accent);color:#fff;text-decoration:none;font-weight:600;padding:10px 22px;border-radius:0;font-size:14px}
 
   .modal-bg{display:none;position:fixed;inset:0;background:rgba(20,28,22,.55);z-index:100;align-items:center;justify-content:center;padding:20px}
   .modal-bg.open{display:flex}
-  .modal{background:#fff;border-radius:14px;max-width:520px;width:100%;padding:32px;max-height:88vh;overflow:auto}
+  .modal{background:#fff;border-radius:0;max-width:520px;width:100%;padding:32px;max-height:88vh;overflow:auto}
   .modal h3{font-size:23px;margin-bottom:10px}
   .modal p{font-size:14.5px;color:#3a3f37;margin-bottom:8px}
   .modal .total-line{font-size:18px;font-weight:700;margin:14px 0}
-  .modal .invnote{background:var(--amber-bg);border:1px solid #e3c98a;color:var(--amber);border-radius:9px;padding:11px 14px;font-size:13px;margin:12px 0}
+  .modal .invnote{background:var(--amber-bg);border:1px solid #e3c98a;color:var(--amber);border-radius:0;padding:11px 14px;font-size:13px;margin:12px 0}
   /* Clickwrap e-sign block (V1) */
-  .sign{border:1px solid var(--line);border-radius:10px;padding:16px;margin:14px 0;background:var(--cream)}
+  .sign{border:1px solid var(--line);border-radius:0;padding:16px;margin:14px 0;background:var(--cream)}
   .sign label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
-  .sign input[type=text]{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin-bottom:12px}
+  .sign input[type=text]{width:100%;padding:10px;border:1px solid var(--line);border-radius:0;font-size:14px;margin-bottom:12px}
   .sign .agree{display:flex;gap:9px;align-items:flex-start;font-size:13px;font-weight:400;color:#3a3f37}
   .sign .agree input{margin-top:3px}
   .modal .cta.primary{background:var(--green)}
@@ -151,7 +150,7 @@
   /* ── Brand tiles (story / social proof / comparison / remote) ── */
   .brand-tiles{display:flex;flex-direction:column;gap:20px;padding:0 0 52px}
 
-  .info-tile{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  .info-tile{background:#fff;border:1px solid var(--line);border-radius:0;overflow:hidden}
 
   /* Story tile */
   .story-inner{padding:40px 36px}
@@ -164,13 +163,13 @@
   /* Social proof tile */
   .social-inner{padding:40px 36px}
   .social-inner .tile-headline{font-family:var(--serif);font-size:28px;font-weight:400;line-height:1.18;letter-spacing:-.01em;color:var(--green-deep);margin-bottom:24px;text-align:center;max-width:600px;margin-left:auto;margin-right:auto}
-  .trusted-bar{background:var(--green);border-radius:12px;padding:22px 28px;margin-bottom:28px}
+  .trusted-bar{background:var(--green);border-radius:0;padding:22px 28px;margin-bottom:28px}
   .trusted-bar .trusted-label{text-align:center;text-transform:uppercase;letter-spacing:.16em;font-size:11px;color:rgba(245,242,236,.65);font-weight:600;margin-bottom:14px}
   .trusted-logos{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:22px 44px}
   .trusted-logos img{height:26px;width:auto;max-width:130px;object-fit:contain;filter:brightness(0) invert(1);opacity:.8}
   .reviews-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
   @media(max-width:700px){.reviews-grid{grid-template-columns:1fr}}
-  .review-card{border:1px solid var(--line);border-radius:12px;padding:22px 22px 18px}
+  .review-card{border:1px solid var(--line);border-radius:0;padding:22px 22px 18px}
   .review-card .qmark{font-family:var(--serif);font-size:48px;line-height:1;color:var(--green);margin-bottom:6px;opacity:.55}
   .review-card p{font-size:14px;color:#3a3f37;line-height:1.65;margin-bottom:16px}
   .review-card .reviewer{border-top:1px solid var(--line);padding-top:12px}
@@ -225,9 +224,9 @@
   .remote-feat .feat-icon{color:var(--green);opacity:.9}
   .remote-feat .feat-icon svg{width:26px;height:26px}
   .remote-cta-wrap{text-align:center;margin-top:28px}
-  .remote-cta{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;font-weight:600;font-size:14.5px;padding:13px 28px;border-radius:9px;transition:opacity .15s}
+  .remote-cta{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;font-weight:600;font-size:14.5px;padding:13px 28px;border-radius:0;transition:opacity .15s}
   .remote-cta:hover{opacity:.88}
-  .floorplan-card{display:block;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;text-decoration:none;line-height:0}
+  .floorplan-card{display:block;border:1px solid var(--line);border-radius:0;overflow:hidden;background:#fff;text-decoration:none;line-height:0}
   .floorplan-card img{display:block;width:100%;height:auto}
 
   /* ── Mobile overrides — placed LAST so they win over the base rules above ── */
@@ -292,7 +291,7 @@
       </div>
       <div class="summary">
         <h3>Your investment</h3>
-        <div id="reacceptBanner" style="display:none;background:#8a5a2e;color:#fff;padding:12px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;line-height:1.45"><strong>Quote updated.</strong> This quote changed since it was last accepted. Please review the items and accept again.</div>
+        <div id="reacceptBanner" style="display:none;background:#8a5a2e;color:#fff;padding:12px 14px;border-radius:0;font-size:13px;margin-bottom:16px;line-height:1.45"><strong>Quote updated.</strong> This quote changed since it was last accepted. Please review the items and accept again.</div>
         <div class="srow"><span class="lbl">Product subtotal</span><span id="sumProducts"></span></div>
         <div class="srow" id="wgRow"><span class="lbl">Shipping &amp; Delivery</span><span id="sumWG"></span></div>
         <div class="srow discount" id="discountRow" style="display:none"><span class="lbl">Discount</span><span id="sumDiscount"></span></div>
@@ -303,7 +302,7 @@
         <a class="cta secondary" id="changesLink" href="#">Request changes</a>
         <p class="fine" id="acceptFine">Accepting this quote begins the e-signature process. Nothing is final until you sign. <a href="#whiteglove" id="wgFineLink" style="color:var(--cream)">See exactly what White Glove includes ↓</a></p>
         <div id="acceptedState" style="display:none">
-          <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(245,242,236,.14);border:1px solid rgba(245,242,236,.32);color:var(--cream);font-weight:600;font-size:14px;padding:10px 16px;border-radius:10px;margin-bottom:14px"><span style="font-size:16px">✓</span> Quote accepted</div>
+          <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(245,242,236,.14);border:1px solid rgba(245,242,236,.32);color:var(--cream);font-weight:600;font-size:14px;padding:10px 16px;border-radius:0;margin-bottom:14px"><span style="font-size:16px">✓</span> Quote accepted</div>
           <p style="font-size:13.5px;line-height:1.55;opacity:.85;margin-bottom:16px" id="acceptedNote">Thank you. Your Branch team has been notified and will follow up with next steps.</p>
           <a class="cta primary" href="https://www.branchfurniture.com/collections/accessories" target="_blank" rel="noopener">Add to your order</a>
           <p class="fine">Want to round out the space? Browse accessories and add-ons, then let your rep know before we finalize.</p>
@@ -316,7 +315,7 @@
 <!-- DELIVERY METHOD (dynamic from the deal's shipping line items) -->
 <section id="deliverySection" style="padding-top:0;display:none">
   <div class="wrap">
-    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--green);border-radius:12px;padding:16px 20px">
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--green);border-radius:0;padding:16px 20px">
       <span style="text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:700;color:var(--muted)">Delivery method</span>
       <span style="font-weight:600;color:var(--ink);font-size:15px" id="deliveryMethodVal"></span>
     </div>
@@ -787,6 +786,7 @@ function openModal(){
   const c = calc();
   document.getElementById("modalTitle").textContent = needsInvCheck() ? "Accept with availability check" : "Accept this quote?";
   document.getElementById("modalPreparedFor").textContent = Q.customer && Q.customer.contactName ? "Prepared for " + Q.customer.contactName : "";
+  document.getElementById("signName").placeholder = Q.customer && Q.customer.contactName ? Q.customer.contactName : "Your full name";
   document.getElementById("modalTotal").textContent = `Pre-Tax Total: ${fmt(c.total)} (incl. Shipping & Delivery; tax calculated at checkout)`;
   const invNote = document.getElementById("modalInvNote");
   if(needsInvCheck()){
