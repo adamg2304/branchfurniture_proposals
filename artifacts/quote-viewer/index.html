@@ -281,7 +281,13 @@
         <div class="invbanner" id="invBanner"><strong>Availability check needed.</strong> You've adjusted quantities from the original quote. We'll confirm stock and delivery timeline before final pricing, usually within one business day.</div>
         <button class="cta primary" id="acceptBtn" onclick="openModal()">Accept this quote</button>
         <a class="cta secondary" id="changesLink" href="#">Request changes</a>
-        <p class="fine">Accepting this quote begins the e-signature process. Nothing is final until you sign. <a href="#whiteglove" id="wgFineLink" style="color:var(--cream)">See exactly what White Glove includes ↓</a></p>
+        <p class="fine" id="acceptFine">Accepting this quote begins the e-signature process. Nothing is final until you sign. <a href="#whiteglove" id="wgFineLink" style="color:var(--cream)">See exactly what White Glove includes ↓</a></p>
+        <div id="acceptedState" style="display:none">
+          <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(245,242,236,.14);border:1px solid rgba(245,242,236,.32);color:var(--cream);font-weight:600;font-size:14px;padding:10px 16px;border-radius:10px;margin-bottom:14px"><span style="font-size:16px">✓</span> Quote accepted</div>
+          <p style="font-size:13.5px;line-height:1.55;opacity:.85;margin-bottom:16px" id="acceptedNote">Thank you. Your Branch team has been notified and will follow up with next steps.</p>
+          <a class="cta primary" href="https://www.branchfurniture.com/collections/accessories" target="_blank" rel="noopener">Add to your order</a>
+          <p class="fine">Want to round out the space? Browse accessories and add-ons, then let your rep know before we finalize.</p>
+        </div>
       </div>
     </div>
   </div>
@@ -829,6 +835,9 @@ function showAccepted(){
   document.getElementById("acceptedCopy").textContent =
     `We've recorded your acceptance and let your Branch team know.` + invLine;
   msg.style.display = "block";
+  // Flip the summary rail to its accepted state behind the modal.
+  Q.accepted = true;
+  applyAcceptedState();
 }
 
 /* ---------- Conditional sections: White Glove + Floorplan ---------- */
@@ -855,10 +864,26 @@ function applyConditionalSections(){
   }
 }
 
+/* ---------- Accepted state ----------
+   When the quote has already been accepted (the deal is in the accepted
+   stage), swap the accept/request actions for an "accepted" confirmation and
+   a soft add-on prompt, and hide the sticky accept bar. */
+function applyAcceptedState(){
+  if(!Q.accepted) return;
+  ["acceptBtn","changesLink","acceptFine","invBanner"].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.style.display="none";
+  });
+  const bar=document.querySelector(".stickybar"); if(bar) bar.style.display="none";
+  const st=document.getElementById("acceptedState"); if(st) st.style.display="block";
+  // Freeze quantity editing once accepted.
+  document.querySelectorAll('#itemRows button, #itemRows input').forEach(el=>{ el.disabled=true; });
+}
+
 /* ---------- Boot ---------- */
 renderHeader();
 renderAll();
 applyConditionalSections();
+applyAcceptedState();
 </script>
 </body>
 </html>

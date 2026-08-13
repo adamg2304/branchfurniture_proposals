@@ -306,6 +306,7 @@ export interface QuotePayload {
     acceptUrl: string;
     floorplanUrl: string;
   };
+  accepted: boolean;
   hasWhiteGlove: boolean;
   hasShipping: boolean;
   rates: {
@@ -632,6 +633,7 @@ export async function fetchDealQuote(
       acceptUrl: `/api/q/${dealId}/accept`,
       floorplanUrl,
     },
+    accepted: deal.properties.dealstage === (process.env["ACCEPTED_DEAL_STAGE_ID"] || "1492994"),
     hasWhiteGlove: Boolean(wgItem),
     hasShipping: shippingLineItems.length > 0,
     rates: { wgAmount: round2(wgAmount), wgRate: round6(shippingRate), shippingAmount: round2(shippingAmount), otherShippingAmount: round2(otherShippingAmount), discount: round2(discount), taxAmount: round2(taxAmount), taxRate: round6(taxRate), taxLabel },
@@ -796,6 +798,7 @@ async function fetchQuotePayloadInternal(
       acceptUrl: `/api/q/${quoteId}/accept`,
       floorplanUrl: await resolveFileUrl(deal.properties.floorplan ?? ""),
     },
+    accepted: false,
     hasWhiteGlove: Boolean(wgItem),
     hasShipping: Boolean(wgItem),
     rates: { wgAmount: round2(wgAmount), wgRate: round6(wgRate), shippingAmount: round2(wgAmount), otherShippingAmount: 0, discount: round2(discount), taxAmount: round2(taxAmount), taxRate: round6(taxRate), taxLabel },
