@@ -4,6 +4,7 @@ import { rateLimit } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import healthRouter from "./routes/health";
+import { hubspotWebhookHandler } from "./routes/provision";
 import { logger } from "./lib/logger";
 import { PgRateLimitStore } from "./lib/pgRateLimitStore";
 
@@ -118,6 +119,13 @@ const quoteAcceptLimiter = rateLimit({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Alias for the HubSpot developer-project webhook target URL. The project is
+// configured to POST deal-stage changes to /webhooks/deal-stage; this routes
+// that path to the same handler as /api/hubspot/webhook. (artifact.toml also
+// routes the /webhooks prefix to this service.) Secret-gated like the canonical
+// endpoint — the target URL must include ?secret=<PROVISION_SECRET>.
+app.post("/webhooks/deal-stage", hubspotWebhookHandler);
 
 // Attach rate limiters before the main router so they run on every matching
 // request regardless of middleware order inside the router.

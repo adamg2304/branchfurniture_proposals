@@ -60,7 +60,7 @@ interface HubSpotWebhookEvent {
   propertyValue?: string;
 }
 
-router.post("/hubspot/webhook", async (req: Request, res: Response) => {
+export async function hubspotWebhookHandler(req: Request, res: Response): Promise<void> {
   const secret = process.env["PROVISION_SECRET"];
   if (!secret) {
     logger.error("PROVISION_SECRET is not set");
@@ -108,7 +108,10 @@ router.post("/hubspot/webhook", async (req: Request, res: Response) => {
       logger.error({ err, dealId }, "Webhook failed to provision deal quote link");
     }
   }
-});
+}
+
+// Canonical path, plus /webhooks/deal-stage alias registered in app.ts.
+router.post("/hubspot/webhook", hubspotWebhookHandler);
 
 /**
  * POST /api/provision/sweep
