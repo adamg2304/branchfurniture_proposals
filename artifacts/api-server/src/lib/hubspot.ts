@@ -267,44 +267,61 @@ function shippingLineAmount(li: HsObject<LineItemProperties>): number {
  * app to have the `files` scope. Returns "" if the id is empty or unresolvable,
  * so a missing or inaccessible file never breaks quote rendering.
  */
-async function resolveFileUrl(fileId: string): Promise<string> {
+interface ResolvedFile {
+  url: string;
+  isPdf: boolean;
+}
+
+async function resolveFileUrl(fileId: string): Promise<ResolvedFile> {
   const id = (fileId ?? "").trim();
-  if (!id) return "";
+  if (!id) return { url: "", isPdf: false };
   // A floorplan uploaded into a deal's file-type property lives in HubSpot's
   // HIDDEN system folder, so reading it (signed-url OR direct) requires the
   // private app to hold BOTH `files` and `files.ui_hidden.read`. A 403 here
   // almost always means `files.ui_hidden.read` is missing.
   //
-  // Prefer a signed URL — it renders even when the file is not publicly shared,
-  // so a private floorplan still loads for a signed-out client.
+  // We read the file metadata for its extension (so a PDF floorplan renders in
+  // an embedded viewer rather than a broken <img>) and prefer a signed URL for
+  // the actual link — it renders even when the file is not publicly shared, so
+  // a private floorplan still loads for a signed-out client.
+  let ext = "";
+  let directUrl = "";
+  try {
+    const file = await hs<{ url?: string | null; extension?: string | null; name?: string | null }>(
+      `/files/v3/files/${id}`,
+    );
+    ext = ((file.extension || file.name?.split(".").pop() || "") as string).toLowerCase().replace(/[^a-z0-9]/g, "");
+    directUrl = file.url ?? "";
+  } catch (err) {
+    const status = (err as { status?: number }).status;
+    logger.warn(
+      { fileId: id, status },
+      status === 403
+        ? "Floorplan file metadata 403 — grant the private app the `files.ui_hidden.read` scope (deal file properties are hidden files)"
+        : "Could not read floorplan file metadata",
+    );
+  }
+
+  let signedUrl = "";
   try {
     const signed = await hs<{ url?: string | null }>(`/files/v3/files/${id}/signed-url`);
-    if (signed.url) return signed.url;
+    signedUrl = signed.url ?? "";
   } catch (err) {
     const status = (err as { status?: number }).status;
     logger.warn(
       { fileId: id, status },
       status === 403
-        ? "Signed floorplan URL 403 — private app is missing the `files.ui_hidden.read` scope; trying direct URL"
-        : "Signed floorplan URL failed; trying direct URL",
+        ? "Signed floorplan URL 403 — private app is missing the `files.ui_hidden.read` scope"
+        : "Signed floorplan URL failed; falling back to direct URL",
     );
   }
-  try {
-    const file = await hs<{ url?: string | null }>(`/files/v3/files/${id}`);
-    if (!file.url) {
-      logger.warn({ fileId: id }, "Floorplan file resolved but has no public URL (make the file public or grant `files.ui_hidden.read`)");
-    }
-    return file.url ?? "";
-  } catch (err) {
-    const status = (err as { status?: number }).status;
-    logger.warn(
-      { fileId: id, status },
-      status === 403
-        ? "Could not resolve floorplan file URL — grant the private app the `files.ui_hidden.read` scope (deal file properties are hidden files)"
-        : "Could not resolve floorplan file URL",
-    );
-    return "";
+
+  const url = signedUrl || directUrl;
+  if (!url) {
+    logger.warn({ fileId: id }, "Could not resolve floorplan file URL (check `files.ui_hidden.read` scope or file access)");
   }
+  const isPdf = ext === "pdf" || /\.pdf(\?|#|$)/i.test(url);
+  return { url, isPdf };
 }
 
 /**
@@ -352,6 +369,7 @@ export interface QuotePayload {
     deliveryMethod: string;
     acceptUrl: string;
     floorplanUrl: string;
+    floorplanIsPdf: boolean;
   };
   accepted: boolean;
   changedSinceAcceptance: boolean;
@@ -591,7 +609,7 @@ export async function fetchDealQuote(
 
   const liProps = ["name", "quantity", "price", "amount", "hs_sku", "hs_url", "hs_images", "hub_image", "hs_total_discount", "hs_lastmodifieddate"];
 
-  const [lineItemsBatch, contactRes, companyRes, ownerRes, floorplanUrl] = await Promise.all([
+  const [lineItemsBatch, contactRes, companyRes, ownerRes, floorplan] = await Promise.all([
     lineItemIds.length > 0
       ? hs<HsBatchResult<LineItemProperties>>(`/crm/v3/objects/line_items/batch/read`, {
           method: "POST",
@@ -702,7 +720,8 @@ export async function fetchDealQuote(
       itemsUpdated,
       deliveryMethod: deliveryMethodLabel(shippingLineItems),
       acceptUrl: `/api/q/${dealId}/accept`,
-      floorplanUrl,
+      floorplanUrl: floorplan.url,
+      floorplanIsPdf: floorplan.isPdf,
     },
     accepted: deal.properties.dealstage === (process.env["ACCEPTED_DEAL_STAGE_ID"] || "1492994"),
     changedSinceAcceptance: false,
@@ -870,7 +889,10 @@ async function fetchQuotePayloadInternal(
       itemsUpdated: "",
       deliveryMethod: "",
       acceptUrl: `/api/q/${quoteId}/accept`,
-      floorplanUrl: await resolveFileUrl(deal.properties.floorplan ?? ""),
+      ...(await (async () => {
+        const fp = await resolveFileUrl(deal.properties.floorplan ?? "");
+        return { floorplanUrl: fp.url, floorplanIsPdf: fp.isPdf };
+      })()),
     },
     accepted: false,
     changedSinceAcceptance: false,

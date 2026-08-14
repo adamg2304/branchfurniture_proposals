@@ -231,6 +231,9 @@
   .remote-cta:hover{opacity:.88}
   .floorplan-card{display:block;border:1px solid var(--line);border-radius:0;overflow:hidden;background:#fff;text-decoration:none;line-height:0}
   .floorplan-card img{display:block;width:100%;height:auto}
+  .floorplan-card iframe{display:block;width:100%;height:min(80vh,880px);border:0;background:#fff}
+  .floorplan-open{display:inline-block;margin-top:16px;font-size:14.5px;font-weight:600;color:var(--accent);text-decoration:none;border-bottom:1.5px solid currentColor;padding-bottom:2px}
+  .floorplan-open:hover{opacity:.8}
 
   /* ── Mobile overrides — placed LAST so they win over the base rules above ── */
   @media(max-width:620px){
@@ -330,9 +333,10 @@
   <div class="wrap">
     <h2 class="section-title">Your space, mapped out</h2>
     <p class="section-sub">The proposed floor plan for your office, matched to the items in this quote.</p>
-    <a id="floorplanLink" href="#" target="_blank" rel="noopener" class="floorplan-card">
+    <div id="floorplanHolder" class="floorplan-card">
       <img id="floorplanImg" src="" alt="Floor plan">
-    </a>
+    </div>
+    <a id="floorplanLink" href="#" target="_blank" rel="noopener" class="floorplan-open">Open the full floor plan &nearr;</a>
   </div>
 </section>
 
@@ -878,12 +882,27 @@ function applyConditionalSections(){
     document.getElementById("deliveryMethodVal").textContent = dm;
     dsec.style.display = "block";
   }
-  // Floorplan only appears when the deal has a floorplan file.
+  // Floorplan only appears when the deal has a floorplan file. A PDF floorplan
+  // renders in an embedded viewer (an <img> can't display a PDF); an image
+  // floorplan renders inline. Either way, a link opens the full file.
   const fp = Q.meta && Q.meta.floorplanUrl;
   const sec = document.getElementById("floorplanSection");
   if(fp && sec){
-    document.getElementById("floorplanImg").src = fp;
-    document.getElementById("floorplanLink").href = fp;
+    const holder = document.getElementById("floorplanHolder");
+    const link = document.getElementById("floorplanLink");
+    if(Q.meta.floorplanIsPdf){
+      const frame = document.createElement("iframe");
+      frame.src = fp + "#toolbar=1&navpanes=0&view=FitH";
+      frame.title = "Floor plan";
+      frame.loading = "lazy";
+      holder.innerHTML = "";
+      holder.appendChild(frame);
+      link.textContent = "Open the full floor plan (PDF) ↗";
+    } else {
+      document.getElementById("floorplanImg").src = fp;
+      link.textContent = "Open the full floor plan ↗";
+    }
+    link.href = fp;
     sec.style.display = "block";
   }
 }
