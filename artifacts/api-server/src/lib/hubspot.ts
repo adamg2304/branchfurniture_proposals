@@ -270,23 +270,39 @@ function shippingLineAmount(li: HsObject<LineItemProperties>): number {
 async function resolveFileUrl(fileId: string): Promise<string> {
   const id = (fileId ?? "").trim();
   if (!id) return "";
+  // A floorplan uploaded into a deal's file-type property lives in HubSpot's
+  // HIDDEN system folder, so reading it (signed-url OR direct) requires the
+  // private app to hold BOTH `files` and `files.ui_hidden.read`. A 403 here
+  // almost always means `files.ui_hidden.read` is missing.
+  //
   // Prefer a signed URL — it renders even when the file is not publicly shared,
-  // so a private floorplan still loads for a signed-out client. Both this and
-  // the direct-URL fallback require the private app to have the `files` scope.
+  // so a private floorplan still loads for a signed-out client.
   try {
     const signed = await hs<{ url?: string | null }>(`/files/v3/files/${id}/signed-url`);
     if (signed.url) return signed.url;
   } catch (err) {
-    logger.warn({ fileId: id, status: (err as { status?: number }).status }, "Signed floorplan URL failed; trying direct URL");
+    const status = (err as { status?: number }).status;
+    logger.warn(
+      { fileId: id, status },
+      status === 403
+        ? "Signed floorplan URL 403 — private app is missing the `files.ui_hidden.read` scope; trying direct URL"
+        : "Signed floorplan URL failed; trying direct URL",
+    );
   }
   try {
     const file = await hs<{ url?: string | null }>(`/files/v3/files/${id}`);
     if (!file.url) {
-      logger.warn({ fileId: id }, "Floorplan file resolved but has no public URL (make the file public or grant `files` scope)");
+      logger.warn({ fileId: id }, "Floorplan file resolved but has no public URL (make the file public or grant `files.ui_hidden.read`)");
     }
     return file.url ?? "";
   } catch (err) {
-    logger.warn({ fileId: id, status: (err as { status?: number }).status }, "Could not resolve floorplan file URL (private app likely missing the `files` scope)");
+    const status = (err as { status?: number }).status;
+    logger.warn(
+      { fileId: id, status },
+      status === 403
+        ? "Could not resolve floorplan file URL — grant the private app the `files.ui_hidden.read` scope (deal file properties are hidden files)"
+        : "Could not resolve floorplan file URL",
+    );
     return "";
   }
 }
